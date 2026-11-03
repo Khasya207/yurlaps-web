@@ -270,7 +270,7 @@ function App() {
               </div>
               <button type="button" onClick={() => { setActiveProduct((activeProduct + 3) % 4); setExpandedProduct(null) }} className={`absolute left-3 top-1/2 z-20 -translate-y-1/2 rounded-full bg-white/90 p-2 text-ocean shadow-md transition hover:bg-blue-50 ${expandedProduct ? 'hidden lg:block' : ''}`} aria-label="Previous product"><ChevronLeft size={20} /></button>
               <button type="button" onClick={() => { setActiveProduct((activeProduct + 1) % 4); setExpandedProduct(null) }} className={`absolute right-3 top-1/2 z-20 -translate-y-1/2 rounded-full bg-white/90 p-2 text-ocean shadow-md transition hover:bg-blue-50 ${expandedProduct ? 'hidden lg:block' : ''}`} aria-label="Next product"><ChevronRight size={20} /></button>
-              <div className="relative z-10 grid min-h-[30rem] items-center gap-8 px-12 py-10 sm:px-20 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16">
+              <div className={`relative z-10 min-h-[30rem] gap-8 px-12 py-10 sm:px-20 ${expandedProduct ? 'flex flex-col items-center' : 'grid items-center lg:grid-cols-[0.9fr_1.1fr] lg:gap-16'}`}>
                 {activeProduct === 0 && <>
                   <button type="button" onClick={() => toggleProduct('decoder')} className={`group text-center transition-transform duration-300 ease-out will-change-transform lg:col-span-2 ${expandedProduct === 'decoder' ? 'w-full' : 'w-full max-w-xl lg:justify-self-center lg:w-[34rem]'}`} aria-expanded={expandedProduct === 'decoder'}>
                     <img src="/decoder-example.png" alt={`${text.decoderName} example`} className="h-[22rem] w-full object-contain transition duration-500 group-hover:scale-[1.02] sm:h-[28rem]" />
