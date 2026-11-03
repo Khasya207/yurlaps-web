@@ -198,3 +198,27 @@ a {
   color: #fff;
   background: #246bfe;
 }
+
+.product-details {
+  position: relative !important;
+  inset: auto !important;
+  z-index: 10 !important;
+  width: 100% !important;
+  max-height: none !important;
+  min-height: 0 !important;
+  transform: none !important;
+  overflow: visible !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  animation: none !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 1.75rem !important;
+}
+
+.product-details > div {
+  width: 100%;
+}
