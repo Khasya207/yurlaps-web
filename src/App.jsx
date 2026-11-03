@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   Check,
   ChevronLeft,
@@ -22,11 +22,36 @@ function App() {
   const [expandedProduct, setExpandedProduct] = useState(null)
   const [activeProduct, setActiveProduct] = useState(0)
   const [contactOpen, setContactOpen] = useState(false)
+  const productScrollPosition = useRef(0)
 
   useEffect(() => {
     const timer = window.setTimeout(() => setIsLoading(false), 1800)
     return () => window.clearTimeout(timer)
   }, [])
+
+  useLayoutEffect(() => {
+    if (!expandedProduct || !window.matchMedia('(max-width: 1023px)').matches) {
+      return undefined
+    }
+
+    const scrollPosition = window.scrollY
+    productScrollPosition.current = scrollPosition
+    const bodyStyle = document.body.style
+    const previousBodyPosition = bodyStyle.position
+    const previousBodyTop = bodyStyle.top
+    const previousBodyWidth = bodyStyle.width
+
+    bodyStyle.position = 'fixed'
+    bodyStyle.top = `-${scrollPosition}px`
+    bodyStyle.width = '100%'
+
+    return () => {
+      bodyStyle.position = previousBodyPosition
+      bodyStyle.top = previousBodyTop
+      bodyStyle.width = previousBodyWidth
+      window.scrollTo(0, productScrollPosition.current)
+    }
+  }, [expandedProduct])
 
   const copy = {
     en: {
@@ -176,6 +201,10 @@ function App() {
     setContactOpen(true)
   }
 
+  const toggleProduct = (product) => {
+    setExpandedProduct((currentProduct) => (currentProduct === product ? null : product))
+  }
+
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#fbfdff] text-ink">
       <div className={`fixed inset-0 z-[100] grid place-items-center overflow-hidden bg-slate-950 transition-all duration-700 ${isLoading ? 'visible opacity-100' : 'pointer-events-none invisible opacity-0'}`}>
@@ -243,28 +272,28 @@ function App() {
               <button type="button" onClick={() => { setActiveProduct((activeProduct + 1) % 4); setExpandedProduct(null) }} className={`absolute right-3 top-1/2 z-20 -translate-y-1/2 rounded-full bg-white/90 p-2 text-ocean shadow-md transition hover:bg-blue-50 ${expandedProduct ? 'hidden lg:block' : ''}`} aria-label="Next product"><ChevronRight size={20} /></button>
               <div className="relative z-10 grid min-h-[30rem] items-center gap-8 px-12 py-10 sm:px-20 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16">
                 {activeProduct === 0 && <>
-                  <button type="button" onClick={() => setExpandedProduct(expandedProduct === 'decoder' ? null : 'decoder')} className={`group text-center transition-transform duration-300 ease-out will-change-transform ${expandedProduct === 'decoder' ? 'w-full' : 'w-full max-w-xl lg:col-span-2 lg:justify-self-center lg:w-[34rem]'}`} aria-expanded={expandedProduct === 'decoder'}>
+                  <button type="button" onClick={() => toggleProduct('decoder')} className={`group text-center transition-transform duration-300 ease-out will-change-transform ${expandedProduct === 'decoder' ? 'w-full' : 'w-full max-w-xl lg:col-span-2 lg:justify-self-center lg:w-[34rem]'}`} aria-expanded={expandedProduct === 'decoder'}>
                     <img src="/decoder-example.png" alt={`${text.decoderName} example`} className="h-[22rem] w-full object-contain transition duration-500 group-hover:scale-[1.02] sm:h-[28rem]" />
                     <h2 className="mt-5 font-display text-3xl font-extrabold leading-[0.98] tracking-[-0.07em] transition-colors group-hover:text-ocean sm:text-5xl">{text.decoderName}</h2>
                   </button>
                   {expandedProduct === 'decoder' && <><div className="fixed inset-0 z-40 bg-slate-950/30 backdrop-blur-md lg:hidden" onClick={() => setExpandedProduct(null)} aria-hidden="true" /><div className="fixed left-1/2 top-1/2 z-50 max-h-[82vh] w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-3xl border border-blue-100 bg-white p-6 pt-16 shadow-2xl animate-[product-modal-in_0.3s_ease-out_both] sm:w-[calc(100%-4rem)] sm:p-8 lg:static lg:max-h-none lg:w-auto lg:translate-x-0 lg:translate-y-0 lg:overflow-visible lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:pt-0 lg:shadow-none"><button type="button" onClick={() => setExpandedProduct(null)} className="absolute right-4 top-4 rounded-full bg-slate-100 p-2 text-slate-500 transition hover:bg-blue-50 hover:text-ocean lg:hidden" aria-label="Close product details"><X size={18} /></button><p className="text-lg font-semibold leading-8 text-ocean">{text.decoderTagline}</p><p className="mt-5 text-lg leading-8 text-slate-600">{text.decoderDescription}</p><div className="mt-7 border-y border-slate-200"><div className="flex items-center justify-between border-b border-slate-100 py-3 text-sm"><span className="text-slate-400">{text.decoderDetails}</span><strong className="max-w-[65%] text-right text-ink">{text.decoderDetailsValue}</strong></div><div className="flex items-center justify-between py-3 text-sm"><span className="text-slate-400">Price</span><strong className="text-right"><span className="mr-2 text-slate-400 line-through">{text.decoderPrice}</span><span className="text-emerald-600">PREORDER {text.decoderPoPrice}</span></strong></div></div></div></>}
                 </>}
                 {activeProduct === 1 && <>
-                  <button type="button" onClick={() => setExpandedProduct(expandedProduct === 'host' ? null : 'host')} className={`group text-center transition-transform duration-300 ease-out will-change-transform ${expandedProduct === 'host' ? 'w-full' : 'w-full max-w-xl lg:col-span-2 lg:justify-self-center lg:w-[34rem]'}`} aria-expanded={expandedProduct === 'host'}>
+                  <button type="button" onClick={() => toggleProduct('host')} className={`group text-center transition-transform duration-300 ease-out will-change-transform ${expandedProduct === 'host' ? 'w-full' : 'w-full max-w-xl lg:col-span-2 lg:justify-self-center lg:w-[34rem]'}`} aria-expanded={expandedProduct === 'host'}>
                     <img src="/yurlaps-host.png" alt={text.hostName} className="h-[22rem] w-full object-contain transition duration-500 group-hover:scale-[1.02] sm:h-[28rem]" />
                     <h2 className="mt-5 font-display text-3xl font-extrabold leading-[0.98] tracking-[-0.07em] transition-colors group-hover:text-ocean sm:text-5xl">{text.hostName}</h2>
                   </button>
                   {expandedProduct === 'host' && <><div className="fixed inset-0 z-40 bg-slate-950/30 backdrop-blur-md lg:hidden" onClick={() => setExpandedProduct(null)} aria-hidden="true" /><div className="fixed left-1/2 top-1/2 z-50 max-h-[82vh] w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-3xl border border-blue-100 bg-white p-6 pt-16 shadow-2xl animate-[product-modal-in_0.3s_ease-out_both] sm:w-[calc(100%-4rem)] sm:p-8 lg:static lg:max-h-none lg:w-auto lg:translate-x-0 lg:translate-y-0 lg:overflow-visible lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:pt-0 lg:shadow-none"><button type="button" onClick={() => setExpandedProduct(null)} className="absolute right-4 top-4 rounded-full bg-slate-100 p-2 text-slate-500 transition hover:bg-blue-50 hover:text-ocean lg:hidden" aria-label="Close product details"><X size={18} /></button><p className="text-lg leading-8 text-slate-600">{text.hostDescription}</p><div className="mt-7 border-y border-slate-200"><div className="flex items-center justify-between py-3 text-sm"><span className="text-slate-400">{text.hostDetails}</span><strong className="text-right text-ink">{text.hostDetailsValue}</strong></div><div className="flex items-center justify-between border-t border-slate-100 py-3 text-sm"><span className="text-slate-400">Price</span><strong className="text-right text-ink">{text.hostPrice}</strong></div></div></div></>}
                 </>}
                 {activeProduct === 2 && <>
-                  <button type="button" onClick={() => setExpandedProduct(expandedProduct === 'transponder' ? null : 'transponder')} className={`group text-center transition-transform duration-300 ease-out will-change-transform ${expandedProduct === 'transponder' ? 'w-full' : 'w-full max-w-xl lg:col-span-2 lg:justify-self-center lg:w-[34rem]'}`} aria-expanded={expandedProduct === 'transponder'}>
+                  <button type="button" onClick={() => toggleProduct('transponder')} className={`group text-center transition-transform duration-300 ease-out will-change-transform ${expandedProduct === 'transponder' ? 'w-full' : 'w-full max-w-xl lg:col-span-2 lg:justify-self-center lg:w-[34rem]'}`} aria-expanded={expandedProduct === 'transponder'}>
                     <img src="/yurlaps-transponder.png" alt={text.transponderName} className="h-[22rem] w-full object-contain transition duration-500 group-hover:scale-[1.02] sm:h-[28rem]" />
                     <h2 className="mt-5 font-display text-3xl font-extrabold leading-[0.98] tracking-[-0.07em] transition-colors group-hover:text-ocean sm:text-5xl">{text.transponderName}</h2>
                   </button>
                   {expandedProduct === 'transponder' && <><div className="fixed inset-0 z-40 bg-slate-950/30 backdrop-blur-md lg:hidden" onClick={() => setExpandedProduct(null)} aria-hidden="true" /><div className="fixed left-1/2 top-1/2 z-50 max-h-[82vh] w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-3xl border border-blue-100 bg-white p-6 pt-16 shadow-2xl animate-[product-modal-in_0.3s_ease-out_both] sm:w-[calc(100%-4rem)] sm:p-8 lg:static lg:max-h-none lg:w-auto lg:translate-x-0 lg:translate-y-0 lg:overflow-visible lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:pt-0 lg:shadow-none"><button type="button" onClick={() => setExpandedProduct(null)} className="absolute right-4 top-4 rounded-full bg-slate-100 p-2 text-slate-500 transition hover:bg-blue-50 hover:text-ocean lg:hidden" aria-label="Close product details"><X size={18} /></button><p className="text-lg leading-8 text-slate-600">{text.transponderDescription}</p><div className="mt-7 border-y border-slate-200"><p className="border-b border-slate-100 py-3 text-xs font-bold uppercase tracking-[0.18em] text-ocean">{text.transponderDetails}</p>{[[text.transponderSize, text.transponderSizeValue], [text.transponderData, text.transponderDataValue]].map(([label, value]) => <div key={label} className="flex items-center justify-between border-b border-slate-100 py-3 text-sm last:border-b-0"><span className="text-slate-400">{label}</span><strong className="max-w-[65%] text-right text-ink">{value}</strong></div>)}<div className="flex items-center justify-between border-t border-slate-100 py-3 text-sm"><span className="text-slate-400">Price</span><strong className="max-w-[65%] text-right"><span className="mr-2 text-slate-400 line-through">{text.transponderPrice}</span><span className="text-emerald-600">PREORDER {text.transponderPoPrice}</span></strong></div></div><div className="mt-8 flex items-center justify-between border-y border-slate-200 py-4 text-sm"><div><p className="font-semibold text-ink">{text.transponderStock}</p><p className="mt-1 text-slate-400">{text.transponderStockNote}</p></div><span className="h-2.5 w-2.5 rounded-full bg-blue-400" /></div></div></>}
                 </>}
                 {activeProduct === 3 && <>
-                  <button type="button" onClick={() => setExpandedProduct(expandedProduct === 'loop' ? null : 'loop')} className={`group text-center transition-transform duration-300 ease-out will-change-transform ${expandedProduct === 'loop' ? 'w-full' : 'w-full max-w-xl lg:col-span-2 lg:justify-self-center lg:w-[34rem]'}`} aria-expanded={expandedProduct === 'loop'}>
+                  <button type="button" onClick={() => toggleProduct('loop')} className={`group text-center transition-transform duration-300 ease-out will-change-transform ${expandedProduct === 'loop' ? 'w-full' : 'w-full max-w-xl lg:col-span-2 lg:justify-self-center lg:w-[34rem]'}`} aria-expanded={expandedProduct === 'loop'}>
                     <img src="/yurlaps-bridge.png" alt={text.productName} className="h-[22rem] w-full object-contain transition duration-500 group-hover:scale-[1.02] sm:h-[28rem]" />
                     <h2 className="mt-5 font-display text-3xl font-extrabold leading-[0.98] tracking-[-0.07em] transition-colors group-hover:text-ocean sm:text-5xl">{text.productName}</h2>
                   </button>
@@ -312,4 +341,3 @@ function App() {
 }
 
 export default App
-
