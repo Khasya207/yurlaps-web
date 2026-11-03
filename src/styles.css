@@ -162,17 +162,30 @@ div[class~='fixed'][class~='left-1/2'][class~='top-1/2'][class~='z-50'] > button
 }
 
 @media (max-width: 1023px) {
+  div[class~='fixed'][class~='inset-0'][class~='z-40'] {
+    display: none;
+  }
+
   div[class~='fixed'][class~='left-1/2'][class~='top-1/2'][class~='z-50'] {
-    max-height: 90dvh;
-    padding-bottom: 2rem;
+    position: relative;
+    inset: auto;
+    z-index: 10;
+    width: 100%;
+    max-height: none;
+    min-height: 0;
+    transform: none;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    padding: 1rem 0 2rem;
+    animation: none;
     touch-action: pan-y;
   }
 
   div[class~='fixed'][class~='left-1/2'][class~='top-1/2'][class~='z-50'] > button[aria-label='Close product details'] {
-    display: grid;
-    place-items: center;
-    min-width: 2.5rem;
-    min-height: 2.5rem;
+    display: none;
   }
 }
 
