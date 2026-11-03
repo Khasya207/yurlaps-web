@@ -85,9 +85,9 @@ function App() {
         'YURLAPS Transponder is a compact and lightweight active timing device designed for precision RC racing. Using magnetic coupling technology, it continuously transmits a unique 7-digit Personal ID, allowing the timing system to identify vehicles as they pass over the detection loop. Built for demanding racing environments, its waterproof construction and compact design make it easy to install in a wide range of RC vehicles.',
       transponderDetails: 'Product details',
       transponderSize: 'Size',
-      transponderSizeValue: '17 Ã— 20 mm',
+      transponderSizeValue: '17 × 20 mm',
       transponderData: 'Driving records',
-      transponderDataValue: 'Practice and race Â· Online coming soon',
+      transponderDataValue: 'Practice and race · Online coming soon',
       transponderStock: 'Coming soon',
       transponderStockNote: 'YURLAPS account integration',
       productName: 'YURLAPS DETECTION LOOP',
@@ -151,9 +151,9 @@ function App() {
         'YURLAPS Transponder adalah perangkat timing aktif yang ringkas dan ringan, dirancang untuk balap RC dengan presisi tinggi. Menggunakan teknologi magnetic coupling, perangkat ini terus mengirimkan Personal ID unik 7 digit sehingga sistem timing dapat mengenali kendaraan saat melewati detection loop. Dibuat untuk lingkungan balap yang menuntut, konstruksi tahan air dan desainnya yang ringkas membuatnya mudah dipasang pada berbagai jenis kendaraan RC.',
       transponderDetails: 'Detail produk',
       transponderSize: 'Ukuran',
-      transponderSizeValue: '17 Ã— 20 mm',
+      transponderSizeValue: '17 × 20 mm',
       transponderData: 'Rekam data mengemudi',
-      transponderDataValue: 'Practice dan race Â· Online segera hadir',
+      transponderDataValue: 'Practice dan race · Online segera hadir',
       transponderStock: 'Segera hadir',
       transponderStockNote: 'Integrasi akun YURLAPS',
       productName: 'YURLAPS DETECTION LOOP',
@@ -335,7 +335,7 @@ function App() {
         </div>
       </div>}
 
-      <footer className="mx-auto flex max-w-6xl items-center justify-between border-t border-slate-200 px-5 py-8 text-xs text-slate-400 sm:px-8"><span>Â© 2026 YurLaps. {text.footer}</span><button onClick={() => scrollTo('home')} className="flex items-center gap-2 font-semibold text-ink hover:text-ocean">{text.back} <ChevronDown size={14} className="rotate-180" /></button></footer>
+      <footer className="mx-auto flex max-w-6xl items-center justify-between border-t border-slate-200 px-5 py-8 text-xs text-slate-400 sm:px-8"><span>© 2026 YurLaps. {text.footer}</span><button onClick={() => scrollTo('home')} className="flex items-center gap-2 font-semibold text-ink hover:text-ocean">{text.back} <ChevronDown size={14} className="rotate-180" /></button></footer>
     </div>
   )
 }
