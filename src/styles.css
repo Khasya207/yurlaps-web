@@ -151,6 +151,31 @@ body {
   margin: 0;
 }
 
+div[class~='fixed'][class~='left-1/2'][class~='top-1/2'][class~='z-50'] {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+}
+
+div[class~='fixed'][class~='left-1/2'][class~='top-1/2'][class~='z-50'] > button[aria-label='Close product details'] {
+  z-index: 20;
+}
+
+@media (max-width: 1023px) {
+  div[class~='fixed'][class~='left-1/2'][class~='top-1/2'][class~='z-50'] {
+    max-height: 90dvh;
+    padding-bottom: 2rem;
+    touch-action: pan-y;
+  }
+
+  div[class~='fixed'][class~='left-1/2'][class~='top-1/2'][class~='z-50'] > button[aria-label='Close product details'] {
+    display: grid;
+    place-items: center;
+    min-width: 2.5rem;
+    min-height: 2.5rem;
+  }
+}
+
 button,
 a {
   -webkit-tap-highlight-color: transparent;
