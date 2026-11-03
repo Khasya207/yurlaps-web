@@ -23,6 +23,7 @@ function App() {
   const [activeProduct, setActiveProduct] = useState(0)
   const [contactOpen, setContactOpen] = useState(false)
   const productScrollPosition = useRef(0)
+  const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
     const timer = window.setTimeout(() => setIsLoading(false), 1800)
@@ -30,7 +31,7 @@ function App() {
   }, [])
 
   useLayoutEffect(() => {
-    if (!expandedProduct || !window.matchMedia('(max-width: 1023px)').matches) {
+    if (!expandedProduct || window.matchMedia('(max-width: 1023px)').matches) {
       return undefined
     }
 
@@ -191,6 +192,20 @@ function App() {
   const text = copy[language]
   const activeProductKey = ['decoder', 'host', 'transponder', 'loop'][activeProduct]
 
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 1023px)')
+    const updateMobileState = () => setIsMobile(mediaQuery.matches)
+    updateMobileState()
+    mediaQuery.addEventListener('change', updateMobileState)
+    return () => mediaQuery.removeEventListener('change', updateMobileState)
+  }, [])
+
+  useEffect(() => {
+    if (isMobile) {
+      setExpandedProduct(activeProductKey)
+    }
+  }, [activeProductKey, isMobile])
+
   const scrollTo = (id) => {
     setMenuOpen(false)
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
@@ -202,6 +217,9 @@ function App() {
   }
 
   const toggleProduct = (product) => {
+    if (window.matchMedia('(max-width: 1023px)').matches) {
+      return
+    }
     setExpandedProduct((currentProduct) => (currentProduct === product ? null : product))
   }
 
