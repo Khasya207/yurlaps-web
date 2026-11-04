@@ -24,7 +24,12 @@ Import this repository into Vercel. Vercel detects Vite automatically:
 - **Build command:** `npm run build`
 - **Output directory:** `dist`
 
-The `/login` route is included and handled by the Vercel rewrite configuration. Login uses email and password. Registration uses name, email, password, and CAPTCHA. New accounts are signed in immediately, so account verification is skipped for now. Signed-in users get an account bar under the navbar with a shortcut to `/dashboard`.
+The `/login` route is included and handled by the Vercel rewrite configuration. Login uses email and password. Registration uses name, email, password, and CAPTCHA. New accounts are signed in immediately, so account verification is skipped for now. Signed-in users get an account bar under the navbar with shortcuts to `/dashboard` and, when they belong to a club, `/club`.
+
+Community routes are also included:
+
+- `/community` — browse public clubs, join with an 8-digit code, or create a club.
+- `/club` and `/club/:id` — club dashboard with Home, Race, Member, Track, and Setting tabs.
 
 Copy `.env.example` to `.env.local` for local development and fill in the Supabase project URL and anon/publishable key. Add the same variables to Vercel for Production, Preview, and Development environments. Enable **Email** under Supabase **Authentication → Providers**, and configure the site URL and redirect URLs to include your Vercel domain.
 
@@ -39,6 +44,26 @@ Run `supabase/schema.sql` in **Supabase → SQL Editor**. The script creates:
 - A public `avatars` storage bucket with per-user upload/update/delete policies.
 
 The dashboard is available at `/dashboard` and includes profile photo upload, account details, TTS preview, and transponder management.
+
+## Community and club setup
+
+After `supabase/schema.sql`, run `supabase/community.sql` in **Supabase → SQL Editor**. The script creates:
+
+- `clubs` — name, description, address, visibility (`public` / `private`), apply method (`open` / `approval`), an 8-digit join code, and per-role permissions.
+- `club_members` — membership with `leader`, `co_leader`, `officer`, or `member` roles and `active` / `pending` status.
+- `club_tracks` — tracks owned by a club.
+- `races` — race history with date, track, location, and a JSONB results payload prepared for the YurLaps app integration.
+- RPCs for joining, reviewing join requests, updating roles, managing settings, and regenerating join codes.
+- Row-level security plus policies that let club mates read each other's profile and transponders for the member list.
+
+Club behaviour:
+
+- Public clubs appear in the community list. Private clubs are joined with their 8-digit code.
+- The club leader is added automatically and always has every permission.
+- Co-leader and officer permissions can be toggled by the leader in **Setting**.
+- Only the leader sees the **Setting** tab, including privacy, apply method, join code, and the permission matrix.
+- Tracks are managed by leaders and co-leaders by default.
+- Race results are shown per club and can be exported as CSV from the race detail view.
 
 ## Automatic account verification
 
@@ -58,6 +83,6 @@ Configure the same URLs under **Authentication → URL Configuration**:
 - `http://127.0.0.1:5173`
 - Your Vercel production URL
 
-## Registration CAPTCHA
+## Login and registration CAPTCHA
 
-Create a Cloudflare Turnstile widget and set its site key as `VITE_TURNSTILE_SITE_KEY` in `.env.local` and Vercel. Add the same hostname(s) to the Turnstile widget configuration. Then enable CAPTCHA in **Supabase → Authentication → Bot and Abuse Protection** and enter the Turnstile secret key there. The secret key must never be added to Vite environment variables or frontend code.
+CAPTCHA is required for both login and registration. Create a Cloudflare Turnstile widget and set its site key as `VITE_TURNSTILE_SITE_KEY` in `.env.local` and Vercel. Add the same hostname(s) to the Turnstile widget configuration. Then enable CAPTCHA in **Supabase → Authentication → Bot and Abuse Protection** and enter the Turnstile secret key there. The secret key must never be added to Vite environment variables or frontend code.

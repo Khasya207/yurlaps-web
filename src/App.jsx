@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Check,
   ChevronLeft,
@@ -9,19 +9,29 @@ import {
   Mail,
   Menu,
   MessageCircle,
+  Users,
   X,
 } from 'lucide-react'
 import { supabase } from './lib/supabase'
 import DashboardPage from './DashboardPage'
+import CommunityPage from './CommunityPage'
+import ClubDashboardPage from './ClubDashboardPage'
 
 const gallery = [
   { src: '/gallery-transponder-size.png', alt: 'YURLAPS Transponder size comparison' },
 ]
 
-const pageFromPath = () => {
-  if (window.location.pathname === '/login') return 'login'
-  if (window.location.pathname === '/dashboard') return 'dashboard'
+const pageFromPath = (path = window.location.pathname) => {
+  if (path === '/login') return 'login'
+  if (path === '/dashboard') return 'dashboard'
+  if (path === '/community') return 'community'
+  if (path === '/club' || path.startsWith('/club/')) return 'club'
   return 'home'
+}
+
+const clubIdFromPath = (path = window.location.pathname) => {
+  if (!path.startsWith('/club/')) return null
+  return path.split('/')[2] || null
 }
 
 function LoginPage({ text, onBack, onSignedIn }) {
@@ -33,19 +43,48 @@ function LoginPage({ text, onBack, onSignedIn }) {
   const [captchaToken, setCaptchaToken] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const captchaRef = useRef(null)
+  const captchaSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY
+  const captchaEnabled = Boolean(captchaSiteKey)
 
   useEffect(() => {
-    if (mode !== 'register' || !window.turnstile || !import.meta.env.VITE_TURNSTILE_SITE_KEY) return undefined
-    const container = document.getElementById('yurlaps-captcha')
-    if (!container || container.childElementCount > 0) return undefined
-    window.turnstile.render(container, {
-      sitekey: import.meta.env.VITE_TURNSTILE_SITE_KEY,
-      callback: (token) => setCaptchaToken(token),
-      'expired-callback': () => setCaptchaToken(''),
-      'error-callback': () => setCaptchaToken(''),
-    })
-    return undefined
-  }, [mode])
+    if (!captchaSiteKey) return undefined
+    let cancelled = false
+    let intervalId
+
+    const tryRender = () => {
+      if (cancelled) return
+      if (!window.turnstile) {
+        intervalId = window.setInterval(tryRender, 300)
+        return
+      }
+      const container = document.getElementById('yurlaps-captcha')
+      if (!container || container.childElementCount > 0) return
+      captchaRef.current = window.turnstile.render(container, {
+        sitekey: captchaSiteKey,
+        callback: (token) => setCaptchaToken(token),
+        'expired-callback': () => setCaptchaToken(''),
+        'error-callback': () => setCaptchaToken(''),
+      })
+    }
+
+    tryRender()
+    return () => {
+      cancelled = true
+      if (intervalId) window.clearInterval(intervalId)
+      if (captchaRef.current && window.turnstile) {
+        window.turnstile.remove(captchaRef.current)
+        captchaRef.current = null
+      }
+    }
+  }, [captchaSiteKey])
+
+  const resetCaptcha = () => {
+    setCaptchaToken('')
+    if (captchaRef.current && window.turnstile) {
+      window.turnstile.reset(captchaRef.current)
+    }
+  }
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -57,14 +96,18 @@ function LoginPage({ text, onBack, onSignedIn }) {
       setError(mode === 'login' ? text.loginError : text.registerError)
       return
     }
-    if (mode === 'register' && !captchaToken) {
+    if (captchaEnabled && !captchaToken) {
       setError(text.captchaError)
       return
     }
     setLoading(true)
     setError('')
     const result = mode === 'login'
-      ? await supabase.auth.signInWithPassword({ email: email.trim(), password })
+      ? await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+          options: { captchaToken },
+        })
       : await supabase.auth.signUp({
           email: email.trim(),
           password,
@@ -76,13 +119,20 @@ function LoginPage({ text, onBack, onSignedIn }) {
         })
     setLoading(false)
     if (result.error) {
-      setError(result.error.message)
+      const message = result.error.message?.toLowerCase() || ''
+      setError(message.includes('captcha') ? text.captchaFailed : result.error.message)
+      resetCaptcha()
       return
     }
     if (mode === 'register' && !result.data.session) {
-      const signInResult = await supabase.auth.signInWithPassword({ email: email.trim(), password })
+      const signInResult = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+        options: { captchaToken },
+      })
       if (signInResult.error) {
         setError(text.registerConfirmRequired)
+        resetCaptcha()
         return
       }
       onSignedIn(signInResult.data.session, true)
@@ -130,13 +180,13 @@ function LoginPage({ text, onBack, onSignedIn }) {
               <span className="mb-2 block text-sm font-bold text-ink">{text.confirmPassword}</span>
               <input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="••••••••" autoComplete="new-password" className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-ocean focus:bg-white focus:ring-4 focus:ring-blue-100" />
             </label>}
-            {mode === 'register' && <div id="yurlaps-captcha" className="min-h-[65px]" />}
+            {captchaEnabled && <div id="yurlaps-captcha" className="min-h-[65px]" />}
             {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-600" role="alert">{error}</p>}
             <button type="submit" disabled={loading} className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-ocean px-5 py-3.5 text-sm font-bold text-white transition hover:bg-[#1855db] disabled:cursor-wait disabled:opacity-60">
               {loading ? text.loading : mode === 'login' ? text.loginSubmit : text.registerSubmit} <LogIn size={17} />
             </button>
           </form>
-          <button type="button" onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); setCaptchaToken('') }} className="mt-6 w-full text-center text-sm font-bold text-ocean transition hover:text-[#1855db]">
+          <button type="button" onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); resetCaptcha() }} className="mt-6 w-full text-center text-sm font-bold text-ocean transition hover:text-[#1855db]">
             {mode === 'login' ? text.noAccount : text.haveAccount}
           </button>
         </div>
@@ -153,10 +203,12 @@ function App() {
   const [activeProduct, setActiveProduct] = useState(0)
   const [contactOpen, setContactOpen] = useState(false)
   const [currentPage, setCurrentPage] = useState(pageFromPath)
+  const [clubId, setClubId] = useState(clubIdFromPath)
   const [session, setSession] = useState(null)
   const [authReady, setAuthReady] = useState(false)
   const [signupSuccessOpen, setSignupSuccessOpen] = useState(false)
-  const [redirectAfterAuth, setRedirectAfterAuth] = useState(false)
+  const [redirectTarget, setRedirectTarget] = useState(null)
+  const [clubMembership, setClubMembership] = useState(null)
 
   useEffect(() => {
     const timer = window.setTimeout(() => setIsLoading(false), 1800)
@@ -183,8 +235,31 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (!authReady || currentPage !== 'dashboard' || session) return
-    setRedirectAfterAuth(true)
+    if (!supabase || !session) {
+      setClubMembership(null)
+      return undefined
+    }
+    let active = true
+    supabase
+      .from('club_members')
+      .select('club_id, role, status')
+      .eq('user_id', session.user.id)
+      .eq('status', 'active')
+      .order('joined_at', { ascending: true })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (active) setClubMembership(data || null)
+      })
+    return () => {
+      active = false
+    }
+  }, [session?.user?.id, currentPage])
+
+  useEffect(() => {
+    if (!authReady || session) return
+    if (currentPage !== 'dashboard' && currentPage !== 'club') return
+    setRedirectTarget(window.location.pathname)
     window.history.replaceState({}, '', '/login')
     setCurrentPage('login')
   }, [authReady, currentPage, session])
@@ -194,6 +269,7 @@ function App() {
       home: 'Home',
       product: 'Product',
       gallery: 'Gallery',
+      community: 'Community',
       contact: 'Contact',
       language: 'Language',
       headline: 'SMALL, LIGHT, AFFORDABLE, AND ACCURATE.',
@@ -271,13 +347,16 @@ function App() {
       signupSuccessText: 'Your account is verified and ready to use. Welcome to YurLaps.',
       signupSuccessDashboard: 'Open personal dashboard',
       signupSuccessClose: 'Back to home',
+      clubDashboard: 'Dashboard club',
+      myClub: 'My club',
+      captchaFailed: 'CAPTCHA verification failed. Please complete it again and retry.',
       fullName: 'Full name',
       noAccount: 'New to YurLaps? Create an account',
       haveAccount: 'Already have an account? Login',
       loading: 'Please wait...',
       supabaseMissing: 'Supabase is not configured. Add the VITE environment variables first.',
       confirmPassword: 'Confirm password',
-      captchaError: 'Please complete the CAPTCHA before creating your account.',
+      captchaError: 'Please complete the CAPTCHA before continuing.',
       account: 'Your YurLaps account is ready.',
       footer: 'Small, light, affordable, and accurate.',
       back: 'Back to top',
@@ -287,6 +366,7 @@ function App() {
       home: 'Beranda',
       product: 'Produk',
       gallery: 'Galeri',
+      community: 'Community',
       contact: 'Kontak',
       language: 'Bahasa',
       headline: 'KECIL, RINGAN, TERJANGKAU, DAN AKURAT.',
@@ -364,13 +444,16 @@ function App() {
       signupSuccessText: 'Akunmu sudah terverifikasi dan siap digunakan. Selamat datang di YurLaps.',
       signupSuccessDashboard: 'Buka dashboard personal',
       signupSuccessClose: 'Kembali ke beranda',
+      clubDashboard: 'Dashboard club',
+      myClub: 'My club',
+      captchaFailed: 'Verifikasi CAPTCHA gagal. Selesaikan lagi lalu coba ulang.',
       fullName: 'Nama lengkap',
       noAccount: 'Belum punya akun YurLaps? Buat akun',
       haveAccount: 'Sudah punya akun? Masuk',
       loading: 'Tunggu sebentar...',
       supabaseMissing: 'Supabase belum dikonfigurasi. Tambahkan environment variable VITE terlebih dahulu.',
       confirmPassword: 'Konfirmasi password',
-      captchaError: 'Selesaikan CAPTCHA sebelum membuat akun.',
+      captchaError: 'Selesaikan CAPTCHA sebelum melanjutkan.',
       account: 'Akun YurLaps kamu sudah siap.',
       footer: 'Kecil, ringan, terjangkau, dan akurat.',
       back: 'Kembali ke atas',
@@ -381,31 +464,34 @@ function App() {
   const text = copy[language]
 
   useEffect(() => {
-    const handlePopState = () => setCurrentPage(pageFromPath())
+    const handlePopState = () => {
+      setClubId(clubIdFromPath())
+      setCurrentPage(pageFromPath())
+    }
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
   }, [])
 
-  const openLogin = () => {
+  const navigateTo = (path) => {
     setMenuOpen(false)
-    window.history.pushState({}, '', '/login')
-    setCurrentPage('login')
+    window.history.pushState({}, '', path)
+    setClubId(clubIdFromPath(path))
+    setCurrentPage(pageFromPath(path))
     window.scrollTo({ top: 0, behavior: 'instant' })
   }
+
+  const openLogin = () => navigateTo('/login')
 
   const goHome = () => {
-    setRedirectAfterAuth(false)
-    window.history.pushState({}, '', '/')
-    setCurrentPage('home')
-    window.scrollTo({ top: 0, behavior: 'instant' })
+    setRedirectTarget(null)
+    navigateTo('/')
   }
 
-  const goDashboard = () => {
-    setMenuOpen(false)
-    window.history.pushState({}, '', '/dashboard')
-    setCurrentPage('dashboard')
-    window.scrollTo({ top: 0, behavior: 'instant' })
-  }
+  const goDashboard = () => navigateTo('/dashboard')
+
+  const openCommunity = () => navigateTo('/community')
+
+  const openClub = (id) => navigateTo(id ? `/club/${id}` : '/club')
 
   const openDashboard = () => {
     if (!session) {
@@ -415,17 +501,31 @@ function App() {
     goDashboard()
   }
 
+  const openClubDashboard = () => {
+    if (!session) {
+      openLogin()
+      return
+    }
+    openClub(clubMembership?.club_id || null)
+  }
+
+  const handleRequireLogin = () => {
+    setRedirectTarget('/community')
+    openLogin()
+  }
+
   const handleSignedIn = (nextSession, justRegistered = false) => {
     if (nextSession) setSession(nextSession)
     if (justRegistered) {
-      setRedirectAfterAuth(false)
+      setRedirectTarget(null)
       goHome()
       setSignupSuccessOpen(true)
       return
     }
-    if (redirectAfterAuth) {
-      setRedirectAfterAuth(false)
-      goDashboard()
+    const target = redirectTarget
+    setRedirectTarget(null)
+    if (target) {
+      navigateTo(target)
       return
     }
     goHome()
@@ -478,20 +578,20 @@ function App() {
             <img src="/yurlaps-logo-transparent.png" alt="YurLaps" className="h-11 w-[7.2rem] object-contain transition-transform group-hover:-rotate-2" />
           </button>
           <div className="hidden items-center gap-1 md:flex">
-            {[['home', text.home], ['products', text.product], ['gallery', text.gallery], ['contact', text.contact]].map(([id, label]) => (
-              <button key={id} onClick={() => scrollTo(id)} className="rounded-full px-3.5 py-2 text-sm font-bold text-slate-600 transition hover:bg-blue-50 hover:text-ocean">{label}</button>
+            {[['home', text.home], ['products', text.product], ['gallery', text.gallery], ['community', text.community], ['contact', text.contact]].map(([id, label]) => (
+              <button key={id} onClick={() => (id === 'community' ? openCommunity() : scrollTo(id))} className="rounded-full px-3.5 py-2 text-sm font-bold text-slate-600 transition hover:bg-blue-50 hover:text-ocean">{label}</button>
             ))}
             <div className="relative ml-1">
               <button onClick={() => setLanguageOpen(!languageOpen)} className="flex items-center gap-1 rounded-full px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] text-slate-600 hover:bg-blue-50 hover:text-ocean">{language.toUpperCase()} <ChevronDown size={13} className={languageOpen ? 'rotate-180' : ''} /></button>
-              {languageOpen && <div className="absolute right-0 top-full mt-2 w-32 rounded-2xl border border-slate-100 bg-white p-1.5 shadow-card">{[['en', 'English'], ['id', 'Indonesia']].map(([value, label]) => <button key={value} onClick={() => { setLanguage(value); setLanguageOpen(false) }} className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-semibold ${language === value ? 'bg-mist text-ocean' : 'text-slate-500 hover:bg-slate-50'}`}>{label}{language === value && <Check size={14} />}</button>)}</div>}
+              {languageOpen && <div className="absolute right-0 top-full z-30 mt-2 w-32 rounded-2xl border border-slate-100 bg-white p-1.5 shadow-card">{[['en', 'English'], ['id', 'Indonesia']].map(([value, label]) => <button key={value} onClick={() => { setLanguage(value); setLanguageOpen(false) }} className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-semibold ${language === value ? 'bg-mist text-ocean' : 'text-slate-500 hover:bg-slate-50'}`}>{label}{language === value && <Check size={14} />}</button>)}</div>}
             </div>
           </div>
           {session ? <button onClick={handleSignOut} className="hidden items-center gap-2 rounded-full bg-slate-100 px-4 py-2.5 text-sm font-semibold text-ocean transition hover:bg-blue-100 md:flex">{session.user.email} · {text.logout}</button> : <button onClick={openLogin} className="hidden items-center gap-2 rounded-full bg-ocean px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#1855db] md:flex">{text.login} <LogIn size={16} /></button>}
           <button onClick={() => setMenuOpen(!menuOpen)} className="rounded-full p-2 text-slate-700 hover:bg-blue-50 md:hidden" aria-label="Toggle menu">{menuOpen ? <X size={21} /> : <Menu size={21} />}</button>
         </nav>
-        {menuOpen && <div className="relative z-10 border-t border-blue-100 bg-white/95 px-5 py-3 backdrop-blur-md md:hidden">{[['home', text.home], ['products', text.product], ['gallery', text.gallery], ['contact', text.contact]].map(([id, label]) => <button key={id} onClick={() => scrollTo(id)} className="block w-full rounded-xl px-3 py-3 text-left text-sm font-bold text-slate-600 hover:bg-blue-50">{label}</button>)}{session ? <button onClick={handleSignOut} className="mt-2 flex w-full items-center justify-center rounded-xl bg-slate-100 px-4 py-3 text-sm font-bold text-ocean">{text.logout}</button> : <button onClick={openLogin} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-ocean px-4 py-3 text-sm font-bold text-white">{text.login} <LogIn size={16} /></button>}<div className="mt-2 flex gap-2 border-t border-blue-100 pt-3">{[['en', 'EN'], ['id', 'ID']].map(([value, label]) => <button key={value} onClick={() => setLanguage(value)} className={`rounded-full px-4 py-2 text-xs font-bold ${language === value ? 'bg-ocean text-white' : 'bg-blue-50 text-slate-500'}`}>{label}</button>)}</div></div>}
-        {session && currentPage !== 'dashboard' && (
-          <div className="relative z-10 border-t border-blue-100 bg-mist/80">
+        {menuOpen && <div className="relative z-10 border-t border-blue-100 bg-white/95 px-5 py-3 backdrop-blur-md md:hidden">{[['home', text.home], ['products', text.product], ['gallery', text.gallery], ['community', text.community], ['contact', text.contact]].map(([id, label]) => <button key={id} onClick={() => (id === 'community' ? openCommunity() : scrollTo(id))} className="block w-full rounded-xl px-3 py-3 text-left text-sm font-bold text-slate-600 hover:bg-blue-50">{label}</button>)}{session ? <button onClick={handleSignOut} className="mt-2 flex w-full items-center justify-center rounded-xl bg-slate-100 px-4 py-3 text-sm font-bold text-ocean">{text.logout}</button> : <button onClick={openLogin} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-ocean px-4 py-3 text-sm font-bold text-white">{text.login} <LogIn size={16} /></button>}<div className="mt-2 flex gap-2 border-t border-blue-100 pt-3">{[['en', 'EN'], ['id', 'ID']].map(([value, label]) => <button key={value} onClick={() => setLanguage(value)} className={`rounded-full px-4 py-2 text-xs font-bold ${language === value ? 'bg-ocean text-white' : 'bg-blue-50 text-slate-500'}`}>{label}</button>)}</div></div>}
+        {session && currentPage !== 'dashboard' && currentPage !== 'club' && (
+          <div className="relative z-[5] border-t border-blue-100 bg-mist/80">
             <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-5 py-2.5 sm:px-8">
               <span className="min-w-0 truncate text-xs font-semibold text-slate-500">
                 {text.signedInAs}{' '}
@@ -499,13 +599,27 @@ function App() {
                   {session.user.user_metadata?.full_name || session.user.email}
                 </span>
               </span>
-              <button
-                type="button"
-                onClick={openDashboard}
-                className="inline-flex shrink-0 items-center gap-2 rounded-full bg-ocean px-4 py-2 text-xs font-bold text-white transition hover:bg-[#1855db]"
-              >
-                <LayoutDashboard size={15} /> {text.personalDashboard}
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                {clubMembership && (
+                  <button
+                    type="button"
+                    onClick={openClubDashboard}
+                    className="inline-flex shrink-0 items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-bold text-ocean shadow-sm transition hover:bg-blue-50"
+                  >
+                    <Users size={15} />
+                    {['leader', 'co_leader', 'officer'].includes(clubMembership.role)
+                      ? text.clubDashboard
+                      : text.myClub}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={openDashboard}
+                  className="inline-flex shrink-0 items-center gap-2 rounded-full bg-ocean px-4 py-2 text-xs font-bold text-white transition hover:bg-[#1855db]"
+                >
+                  <LayoutDashboard size={15} /> {text.personalDashboard}
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -520,6 +634,30 @@ function App() {
             language={language}
             onBack={goHome}
             onSignOut={handleSignOut}
+          />
+        ) : (
+          <main className="grid min-h-[60vh] place-items-center px-5">
+            <p className="text-sm font-semibold text-slate-500">{text.loading}</p>
+          </main>
+        )
+      ) : currentPage === 'community' ? (
+        <CommunityPage
+          session={session}
+          language={language}
+          onBack={goHome}
+          onRequireLogin={handleRequireLogin}
+          onOpenClub={openClub}
+        />
+      ) : currentPage === 'club' ? (
+        session ? (
+          <ClubDashboardPage
+            session={session}
+            language={language}
+            clubId={clubId}
+            onBack={openCommunity}
+            onOpenCommunity={openCommunity}
+            onSignOut={handleSignOut}
+            onSelectClub={(id) => openClub(id)}
           />
         ) : (
           <main className="grid min-h-[60vh] place-items-center px-5">
