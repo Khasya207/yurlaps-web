@@ -24,7 +24,7 @@ Import this repository into Vercel. Vercel detects Vite automatically:
 - **Build command:** `npm run build`
 - **Output directory:** `dist`
 
-The `/login` route is included and handled by the Vercel rewrite configuration. Login uses email and password. Registration uses name, email, password, and CAPTCHA. New accounts are signed in immediately, so account verification is skipped for now. Signed-in users get an account bar under the navbar with shortcuts to `/dashboard` and, when they belong to a club, `/club`.
+The `/login` route is included and handled by the Vercel rewrite configuration. Login uses email and password, and both login and registration are protected by CAPTCHA. New accounts are signed in immediately, so account verification is skipped for now. Signed-in users get an account bar under the navbar with shortcuts to `/dashboard` and, when they belong to a club, `/club`.
 
 Community routes are also included:
 
