@@ -43,7 +43,14 @@ function LoginPage({ text, onBack, onSignedIn }) {
     setSubmitted(false)
     const result = mode === 'login'
       ? await supabase.auth.signInWithPassword({ email: email.trim(), password })
-      : await supabase.auth.signUp({ email: email.trim(), password, options: { data: { full_name: name.trim() } } })
+      : await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+          options: {
+            data: { full_name: name.trim() },
+            emailRedirectTo: `${window.location.origin}/login`,
+          },
+        })
     setLoading(false)
 
     if (result.error) {
