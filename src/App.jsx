@@ -22,15 +22,13 @@ function LoginPage({ text, onBack, onSignedIn }) {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [name, setName] = useState('')
   const [mode, setMode] = useState('login')
-  const [verificationStep, setVerificationStep] = useState(false)
-  const [otp, setOtp] = useState('')
   const [captchaToken, setCaptchaToken] = useState('')
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (mode !== 'register' || verificationStep || !window.turnstile || !import.meta.env.VITE_TURNSTILE_SITE_KEY) return undefined
+    if (mode !== 'register' || !window.turnstile || !import.meta.env.VITE_TURNSTILE_SITE_KEY) return undefined
     const container = document.getElementById('yurlaps-captcha')
     if (!container || container.childElementCount > 0) return undefined
     window.turnstile.render(container, {
@@ -40,7 +38,7 @@ function LoginPage({ text, onBack, onSignedIn }) {
       'error-callback': () => setCaptchaToken(''),
     })
     return undefined
-  }, [mode, verificationStep])
+  }, [mode])
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -48,25 +46,6 @@ function LoginPage({ text, onBack, onSignedIn }) {
       setError(text.supabaseMissing)
       return
     }
-    if (verificationStep) {
-      if (!otp.trim()) {
-        setError(text.otpError)
-        return
-      }
-      setLoading(true)
-      const result = await supabase.auth.verifyOtp({ email: email.trim(), token: otp.trim(), type: 'signup' })
-      setLoading(false)
-      if (result.error) {
-        const errorMessage = result.error.message?.toLowerCase() || ''
-        setError(errorMessage.includes('rate limit') || errorMessage.includes('email rate')
-          ? text.emailRateLimit
-          : result.error.message)
-        return
-      }
-      onSignedIn(result.data.session)
-      return
-    }
-
     if (!email.trim() || !password || (mode === 'register' && (!name.trim() || password !== confirmPassword))) {
       setError(mode === 'login' ? text.loginError : text.registerError)
       return
@@ -95,8 +74,12 @@ function LoginPage({ text, onBack, onSignedIn }) {
       return
     }
     if (mode === 'register' && !result.data.session) {
-      setVerificationStep(true)
-      setMessage(text.otpSent)
+      const signInResult = await supabase.auth.signInWithPassword({ email: email.trim(), password })
+      if (signInResult.error) {
+        setError(text.registerConfirmRequired)
+        return
+      }
+      onSignedIn(signInResult.data.session)
       return
     }
     onSignedIn(result.data.session)
@@ -122,40 +105,35 @@ function LoginPage({ text, onBack, onSignedIn }) {
             <img src="/yurlaps-logo-transparent.png" alt="YurLaps" className="h-12 w-32 object-contain object-left" />
             <p className="mt-8 text-xs font-bold uppercase tracking-[0.22em] text-ocean">YurLaps</p>
           </div>
-          <h1 className="mt-4 font-display text-4xl font-extrabold tracking-[-0.07em] text-ink sm:text-5xl">{verificationStep ? text.verifyTitle : mode === 'login' ? text.loginTitle : text.registerTitle}</h1>
-          <p className="mt-4 max-w-md text-base leading-7 text-slate-500">{verificationStep ? text.otpPrompt : text.loginSubtitle}</p>
+          <h1 className="mt-4 font-display text-4xl font-extrabold tracking-[-0.07em] text-ink sm:text-5xl">{mode === 'login' ? text.loginTitle : text.registerTitle}</h1>
+          <p className="mt-4 max-w-md text-base leading-7 text-slate-500">{text.loginSubtitle}</p>
           <form onSubmit={handleSubmit} className="mt-8 space-y-5">
-            {!verificationStep && mode === 'register' && <label className="block">
+            {mode === 'register' && <label className="block">
               <span className="mb-2 block text-sm font-bold text-ink">{text.fullName}</span>
               <input type="text" value={name} onChange={(event) => setName(event.target.value)} placeholder="Your name" autoComplete="name" className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-ocean focus:bg-white focus:ring-4 focus:ring-blue-100" />
             </label>}
-            {!verificationStep && <label className="block">
+            <label className="block">
               <span className="mb-2 block text-sm font-bold text-ink">{text.email}</span>
               <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" autoComplete="email" className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-ocean focus:bg-white focus:ring-4 focus:ring-blue-100" />
-            </label>}
-            {!verificationStep && <label className="block">
+            </label>
+            <label className="block">
               <span className="mb-2 block text-sm font-bold text-ink">{text.password}</span>
               <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="••••••••" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-ocean focus:bg-white focus:ring-4 focus:ring-blue-100" />
-            </label>}
-            {!verificationStep && mode === 'register' && <label className="block">
+            </label>
+            {mode === 'register' && <label className="block">
               <span className="mb-2 block text-sm font-bold text-ink">{text.confirmPassword}</span>
               <input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="••••••••" autoComplete="new-password" className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-ocean focus:bg-white focus:ring-4 focus:ring-blue-100" />
             </label>}
-            {verificationStep && <label className="block">
-              <span className="mb-2 block text-sm font-bold text-ink">{text.otpCode}</span>
-              <input type="text" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={otp} onChange={(event) => setOtp(event.target.value.replace(/\D/g, ''))} placeholder="123456" autoComplete="one-time-code" className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-center text-lg font-bold tracking-[0.35em] text-ink outline-none transition placeholder:text-slate-400 focus:border-ocean focus:bg-white focus:ring-4 focus:ring-blue-100" />
-            </label>}
-            {!verificationStep && mode === 'register' && <div id="yurlaps-captcha" className="min-h-[65px]" />}
+            {mode === 'register' && <div id="yurlaps-captcha" className="min-h-[65px]" />}
             {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-600" role="alert">{error}</p>}
             {message && <p className="rounded-xl bg-blue-50 px-4 py-3 text-sm font-semibold text-ocean" role="status">{message}</p>}
             <button type="submit" disabled={loading} className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-ocean px-5 py-3.5 text-sm font-bold text-white transition hover:bg-[#1855db] disabled:cursor-wait disabled:opacity-60">
-              {loading ? text.loading : verificationStep ? text.verifyOtp : mode === 'login' ? text.loginSubmit : text.registerSubmit} <LogIn size={17} />
+              {loading ? text.loading : mode === 'login' ? text.loginSubmit : text.registerSubmit} <LogIn size={17} />
             </button>
           </form>
-          {!verificationStep && <button type="button" onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); setMessage(''); setCaptchaToken('') }} className="mt-6 w-full text-center text-sm font-bold text-ocean transition hover:text-[#1855db]">
+          <button type="button" onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); setMessage(''); setCaptchaToken('') }} className="mt-6 w-full text-center text-sm font-bold text-ocean transition hover:text-[#1855db]">
             {mode === 'login' ? text.noAccount : text.haveAccount}
-          </button>}
-          {verificationStep && <button type="button" onClick={() => { setVerificationStep(false); setOtp(''); setError(''); setMessage('') }} className="mt-6 w-full text-center text-sm font-bold text-ocean transition hover:text-[#1855db]">{text.changeEmail}</button>}
+          </button>
         </div>
       </div>
     </main>
@@ -265,23 +243,15 @@ function App() {
       registerTitle: 'Create your account.',
       registerSubmit: 'Create account',
       registerError: 'Please enter your name, email, and password.',
-      registerSuccess: 'Account created. Check your email to confirm your account.',
+      registerSuccess: 'Account created and signed in.',
+      registerConfirmRequired: 'Account created, but email confirmation is still enabled. Disable "Confirm email" in Supabase Auth settings so new accounts are verified automatically.',
       fullName: 'Full name',
       noAccount: 'New to YurLaps? Create an account',
       haveAccount: 'Already have an account? Login',
       loading: 'Please wait...',
       supabaseMissing: 'Supabase is not configured. Add the VITE environment variables first.',
-      otpEmailError: 'Please enter a valid email address.',
-      otpSent: 'A 6-digit verification code was sent to your email.',
-      otpPrompt: 'Enter the 6-digit code sent to your email to continue.',
-      otpCode: 'Verification code',
-      sendOtp: 'Send code',
-      verifyOtp: 'Verify and continue',
-      changeEmail: 'Use a different email',
-      verifyTitle: 'Verify your account.',
       confirmPassword: 'Confirm password',
       captchaError: 'Please complete the CAPTCHA before creating your account.',
-      emailRateLimit: 'Too many verification emails were requested for this project. Please wait before trying again, or configure custom SMTP in Supabase.',
       account: 'Account coming soon.',
       footer: 'Small, light, affordable, and accurate.',
       back: 'Back to top',
@@ -361,23 +331,15 @@ function App() {
       registerTitle: 'Buat akunmu.',
       registerSubmit: 'Buat akun',
       registerError: 'Silakan isi nama, email, dan password.',
-      registerSuccess: 'Akun berhasil dibuat. Cek email untuk konfirmasi akun.',
+      registerSuccess: 'Akun berhasil dibuat dan langsung masuk.',
+      registerConfirmRequired: 'Akun berhasil dibuat, tetapi konfirmasi email masih aktif di Supabase. Nonaktifkan "Confirm email" pada pengaturan Supabase Auth agar akun baru otomatis terverifikasi.',
       fullName: 'Nama lengkap',
       noAccount: 'Belum punya akun YurLaps? Buat akun',
       haveAccount: 'Sudah punya akun? Masuk',
       loading: 'Tunggu sebentar...',
       supabaseMissing: 'Supabase belum dikonfigurasi. Tambahkan environment variable VITE terlebih dahulu.',
-      otpEmailError: 'Silakan masukkan alamat email yang valid.',
-      otpSent: 'Kode verifikasi 6 digit telah dikirim ke email kamu.',
-      otpPrompt: 'Masukkan kode 6 digit yang dikirim ke email kamu untuk melanjutkan.',
-      otpCode: 'Kode verifikasi',
-      sendOtp: 'Kirim kode',
-      verifyOtp: 'Verifikasi dan lanjutkan',
-      changeEmail: 'Gunakan email lain',
-      verifyTitle: 'Verifikasi akunmu.',
       confirmPassword: 'Konfirmasi password',
       captchaError: 'Selesaikan CAPTCHA sebelum membuat akun.',
-      emailRateLimit: 'Terlalu banyak email verifikasi yang diminta untuk project ini. Tunggu beberapa saat atau konfigurasi SMTP custom di Supabase.',
       account: 'Akun segera hadir.',
       footer: 'Kecil, ringan, terjangkau, dan akurat.',
       back: 'Kembali ke atas',
