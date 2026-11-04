@@ -57,7 +57,10 @@ function LoginPage({ text, onBack, onSignedIn }) {
       const result = await supabase.auth.verifyOtp({ email: email.trim(), token: otp.trim(), type: 'signup' })
       setLoading(false)
       if (result.error) {
-        setError(result.error.message)
+        const errorMessage = result.error.message?.toLowerCase() || ''
+        setError(errorMessage.includes('rate limit') || errorMessage.includes('email rate')
+          ? text.emailRateLimit
+          : result.error.message)
         return
       }
       onSignedIn(result.data.session)
@@ -278,6 +281,7 @@ function App() {
       verifyTitle: 'Verify your account.',
       confirmPassword: 'Confirm password',
       captchaError: 'Please complete the CAPTCHA before creating your account.',
+      emailRateLimit: 'Too many verification emails were requested for this project. Please wait before trying again, or configure custom SMTP in Supabase.',
       account: 'Account coming soon.',
       footer: 'Small, light, affordable, and accurate.',
       back: 'Back to top',
@@ -373,6 +377,7 @@ function App() {
       verifyTitle: 'Verifikasi akunmu.',
       confirmPassword: 'Konfirmasi password',
       captchaError: 'Selesaikan CAPTCHA sebelum membuat akun.',
+      emailRateLimit: 'Terlalu banyak email verifikasi yang diminta untuk project ini. Tunggu beberapa saat atau konfigurasi SMTP custom di Supabase.',
       account: 'Akun segera hadir.',
       footer: 'Kecil, ringan, terjangkau, dan akurat.',
       back: 'Kembali ke atas',
