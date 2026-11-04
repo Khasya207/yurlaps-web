@@ -4,6 +4,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
+  LayoutDashboard,
   LogIn,
   Mail,
   Menu,
@@ -11,10 +12,17 @@ import {
   X,
 } from 'lucide-react'
 import { supabase } from './lib/supabase'
+import DashboardPage from './DashboardPage'
 
 const gallery = [
   { src: '/gallery-transponder-size.png', alt: 'YURLAPS Transponder size comparison' },
 ]
+
+const pageFromPath = () => {
+  if (window.location.pathname === '/login') return 'login'
+  if (window.location.pathname === '/dashboard') return 'dashboard'
+  return 'home'
+}
 
 function LoginPage({ text, onBack, onSignedIn }) {
   const [email, setEmail] = useState('')
@@ -24,7 +32,6 @@ function LoginPage({ text, onBack, onSignedIn }) {
   const [mode, setMode] = useState('login')
   const [captchaToken, setCaptchaToken] = useState('')
   const [error, setError] = useState('')
-  const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -56,7 +63,6 @@ function LoginPage({ text, onBack, onSignedIn }) {
     }
     setLoading(true)
     setError('')
-    setMessage('')
     const result = mode === 'login'
       ? await supabase.auth.signInWithPassword({ email: email.trim(), password })
       : await supabase.auth.signUp({
@@ -79,10 +85,10 @@ function LoginPage({ text, onBack, onSignedIn }) {
         setError(text.registerConfirmRequired)
         return
       }
-      onSignedIn(signInResult.data.session)
+      onSignedIn(signInResult.data.session, true)
       return
     }
-    onSignedIn(result.data.session)
+    onSignedIn(result.data.session, mode === 'register')
   }
 
   return (
@@ -126,12 +132,11 @@ function LoginPage({ text, onBack, onSignedIn }) {
             </label>}
             {mode === 'register' && <div id="yurlaps-captcha" className="min-h-[65px]" />}
             {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-600" role="alert">{error}</p>}
-            {message && <p className="rounded-xl bg-blue-50 px-4 py-3 text-sm font-semibold text-ocean" role="status">{message}</p>}
             <button type="submit" disabled={loading} className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-ocean px-5 py-3.5 text-sm font-bold text-white transition hover:bg-[#1855db] disabled:cursor-wait disabled:opacity-60">
               {loading ? text.loading : mode === 'login' ? text.loginSubmit : text.registerSubmit} <LogIn size={17} />
             </button>
           </form>
-          <button type="button" onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); setMessage(''); setCaptchaToken('') }} className="mt-6 w-full text-center text-sm font-bold text-ocean transition hover:text-[#1855db]">
+          <button type="button" onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); setCaptchaToken('') }} className="mt-6 w-full text-center text-sm font-bold text-ocean transition hover:text-[#1855db]">
             {mode === 'login' ? text.noAccount : text.haveAccount}
           </button>
         </div>
@@ -147,8 +152,11 @@ function App() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeProduct, setActiveProduct] = useState(0)
   const [contactOpen, setContactOpen] = useState(false)
-  const [currentPage, setCurrentPage] = useState(window.location.pathname === '/login' ? 'login' : 'home')
+  const [currentPage, setCurrentPage] = useState(pageFromPath)
   const [session, setSession] = useState(null)
+  const [authReady, setAuthReady] = useState(false)
+  const [signupSuccessOpen, setSignupSuccessOpen] = useState(false)
+  const [redirectAfterAuth, setRedirectAfterAuth] = useState(false)
 
   useEffect(() => {
     const timer = window.setTimeout(() => setIsLoading(false), 1800)
@@ -156,10 +164,16 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (!supabase) return undefined
+    if (!supabase) {
+      setAuthReady(true)
+      return undefined
+    }
     let active = true
     supabase.auth.getSession().then(({ data }) => {
-      if (active) setSession(data.session)
+      if (active) {
+        setSession(data.session)
+        setAuthReady(true)
+      }
     })
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => setSession(nextSession))
     return () => {
@@ -167,6 +181,13 @@ function App() {
       listener.subscription.unsubscribe()
     }
   }, [])
+
+  useEffect(() => {
+    if (!authReady || currentPage !== 'dashboard' || session) return
+    setRedirectAfterAuth(true)
+    window.history.replaceState({}, '', '/login')
+    setCurrentPage('login')
+  }, [authReady, currentPage, session])
 
   const copy = {
     en: {
@@ -243,8 +264,13 @@ function App() {
       registerTitle: 'Create your account.',
       registerSubmit: 'Create account',
       registerError: 'Please enter your name, email, and password.',
-      registerSuccess: 'Account created and signed in.',
       registerConfirmRequired: 'Account created, but email confirmation is still enabled. Disable "Confirm email" in Supabase Auth settings so new accounts are verified automatically.',
+      signedInAs: 'Signed in as',
+      personalDashboard: 'Personal dashboard',
+      signupSuccessTitle: 'Account created successfully',
+      signupSuccessText: 'Your account is verified and ready to use. Welcome to YurLaps.',
+      signupSuccessDashboard: 'Open personal dashboard',
+      signupSuccessClose: 'Back to home',
       fullName: 'Full name',
       noAccount: 'New to YurLaps? Create an account',
       haveAccount: 'Already have an account? Login',
@@ -252,7 +278,7 @@ function App() {
       supabaseMissing: 'Supabase is not configured. Add the VITE environment variables first.',
       confirmPassword: 'Confirm password',
       captchaError: 'Please complete the CAPTCHA before creating your account.',
-      account: 'Account coming soon.',
+      account: 'Your YurLaps account is ready.',
       footer: 'Small, light, affordable, and accurate.',
       back: 'Back to top',
       splash: 'SMALL, LIGHT, AFFORDABLE, AND ACCURATE.',
@@ -331,8 +357,13 @@ function App() {
       registerTitle: 'Buat akunmu.',
       registerSubmit: 'Buat akun',
       registerError: 'Silakan isi nama, email, dan password.',
-      registerSuccess: 'Akun berhasil dibuat dan langsung masuk.',
       registerConfirmRequired: 'Akun berhasil dibuat, tetapi konfirmasi email masih aktif di Supabase. Nonaktifkan "Confirm email" pada pengaturan Supabase Auth agar akun baru otomatis terverifikasi.',
+      signedInAs: 'Masuk sebagai',
+      personalDashboard: 'Dashboard personal',
+      signupSuccessTitle: 'Akun berhasil dibuat',
+      signupSuccessText: 'Akunmu sudah terverifikasi dan siap digunakan. Selamat datang di YurLaps.',
+      signupSuccessDashboard: 'Buka dashboard personal',
+      signupSuccessClose: 'Kembali ke beranda',
       fullName: 'Nama lengkap',
       noAccount: 'Belum punya akun YurLaps? Buat akun',
       haveAccount: 'Sudah punya akun? Masuk',
@@ -340,7 +371,7 @@ function App() {
       supabaseMissing: 'Supabase belum dikonfigurasi. Tambahkan environment variable VITE terlebih dahulu.',
       confirmPassword: 'Konfirmasi password',
       captchaError: 'Selesaikan CAPTCHA sebelum membuat akun.',
-      account: 'Akun segera hadir.',
+      account: 'Akun YurLaps kamu sudah siap.',
       footer: 'Kecil, ringan, terjangkau, dan akurat.',
       back: 'Kembali ke atas',
       splash: 'KECIL, RINGAN, TERJANGKAU, DAN AKURAT.',
@@ -350,7 +381,7 @@ function App() {
   const text = copy[language]
 
   useEffect(() => {
-    const handlePopState = () => setCurrentPage(window.location.pathname === '/login' ? 'login' : 'home')
+    const handlePopState = () => setCurrentPage(pageFromPath())
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
   }, [])
@@ -363,21 +394,58 @@ function App() {
   }
 
   const goHome = () => {
+    setRedirectAfterAuth(false)
     window.history.pushState({}, '', '/')
     setCurrentPage('home')
     window.scrollTo({ top: 0, behavior: 'instant' })
   }
 
-  const handleSignedIn = () => {
+  const goDashboard = () => {
+    setMenuOpen(false)
+    window.history.pushState({}, '', '/dashboard')
+    setCurrentPage('dashboard')
+    window.scrollTo({ top: 0, behavior: 'instant' })
+  }
+
+  const openDashboard = () => {
+    if (!session) {
+      openLogin()
+      return
+    }
+    goDashboard()
+  }
+
+  const handleSignedIn = (nextSession, justRegistered = false) => {
+    if (nextSession) setSession(nextSession)
+    if (justRegistered) {
+      setRedirectAfterAuth(false)
+      goHome()
+      setSignupSuccessOpen(true)
+      return
+    }
+    if (redirectAfterAuth) {
+      setRedirectAfterAuth(false)
+      goDashboard()
+      return
+    }
     goHome()
   }
 
   const handleSignOut = async () => {
     if (supabase) await supabase.auth.signOut()
+    setSignupSuccessOpen(false)
+    goHome()
   }
 
   const scrollTo = (id) => {
     setMenuOpen(false)
+    if (currentPage !== 'home') {
+      goHome()
+      window.setTimeout(() => {
+        document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
+      }, 80)
+      return
+    }
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
   }
 
@@ -422,9 +490,43 @@ function App() {
           <button onClick={() => setMenuOpen(!menuOpen)} className="rounded-full p-2 text-slate-700 hover:bg-blue-50 md:hidden" aria-label="Toggle menu">{menuOpen ? <X size={21} /> : <Menu size={21} />}</button>
         </nav>
         {menuOpen && <div className="relative z-10 border-t border-blue-100 bg-white/95 px-5 py-3 backdrop-blur-md md:hidden">{[['home', text.home], ['products', text.product], ['gallery', text.gallery], ['contact', text.contact]].map(([id, label]) => <button key={id} onClick={() => scrollTo(id)} className="block w-full rounded-xl px-3 py-3 text-left text-sm font-bold text-slate-600 hover:bg-blue-50">{label}</button>)}{session ? <button onClick={handleSignOut} className="mt-2 flex w-full items-center justify-center rounded-xl bg-slate-100 px-4 py-3 text-sm font-bold text-ocean">{text.logout}</button> : <button onClick={openLogin} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-ocean px-4 py-3 text-sm font-bold text-white">{text.login} <LogIn size={16} /></button>}<div className="mt-2 flex gap-2 border-t border-blue-100 pt-3">{[['en', 'EN'], ['id', 'ID']].map(([value, label]) => <button key={value} onClick={() => setLanguage(value)} className={`rounded-full px-4 py-2 text-xs font-bold ${language === value ? 'bg-ocean text-white' : 'bg-blue-50 text-slate-500'}`}>{label}</button>)}</div></div>}
+        {session && currentPage !== 'dashboard' && (
+          <div className="relative z-10 border-t border-blue-100 bg-mist/80">
+            <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-5 py-2.5 sm:px-8">
+              <span className="min-w-0 truncate text-xs font-semibold text-slate-500">
+                {text.signedInAs}{' '}
+                <span className="font-bold text-ink">
+                  {session.user.user_metadata?.full_name || session.user.email}
+                </span>
+              </span>
+              <button
+                type="button"
+                onClick={openDashboard}
+                className="inline-flex shrink-0 items-center gap-2 rounded-full bg-ocean px-4 py-2 text-xs font-bold text-white transition hover:bg-[#1855db]"
+              >
+                <LayoutDashboard size={15} /> {text.personalDashboard}
+              </button>
+            </div>
+          </div>
+        )}
       </header>
 
-      {currentPage === 'login' ? <LoginPage text={text} onBack={goHome} onSignedIn={handleSignedIn} /> : <>
+      {currentPage === 'login' ? (
+        <LoginPage text={text} onBack={goHome} onSignedIn={handleSignedIn} />
+      ) : currentPage === 'dashboard' ? (
+        session ? (
+          <DashboardPage
+            session={session}
+            language={language}
+            onBack={goHome}
+            onSignOut={handleSignOut}
+          />
+        ) : (
+          <main className="grid min-h-[60vh] place-items-center px-5">
+            <p className="text-sm font-semibold text-slate-500">{text.loading}</p>
+          </main>
+        )
+      ) : <>
       <main>
         <section id="home" className="pb-24 pt-20 lg:pb-32 lg:pt-28">
           <div className="mx-auto max-w-6xl px-5 sm:px-8">
@@ -496,7 +598,18 @@ function App() {
 
         <section id="account" className="mx-auto max-w-6xl px-5 pb-20 sm:px-8">
           <div className="flex flex-col justify-between gap-5 border-t border-slate-200 pt-8 sm:flex-row sm:items-center">
-            <span className="text-sm font-semibold">{text.account}</span>
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-sm font-semibold">{text.account}</span>
+              {session ? (
+                <button onClick={openDashboard} className="inline-flex items-center gap-1.5 rounded-full bg-ocean px-3.5 py-2 text-xs font-bold text-white transition hover:bg-[#1855db]">
+                  <LayoutDashboard size={14} /> {text.personalDashboard}
+                </button>
+              ) : (
+                <button onClick={openLogin} className="inline-flex items-center gap-1.5 rounded-full bg-ocean px-3.5 py-2 text-xs font-bold text-white transition hover:bg-[#1855db]">
+                  {text.login} <LogIn size={14} />
+                </button>
+              )}
+            </div>
             <div className="flex flex-wrap gap-2">
               {[['home', text.home], ['products', text.product], ['gallery', text.gallery], ['contact', text.contact]].map(([id, label]) => (
                 <button key={id} onClick={() => scrollTo(id)} className="rounded-full bg-blue-50 px-3.5 py-2 text-xs font-bold text-ocean transition hover:bg-blue-100">{label}</button>
@@ -514,6 +627,22 @@ function App() {
           <a href="https://wa.me/6285156462372" target="_blank" rel="noreferrer" className="mt-7 flex items-center justify-center gap-2 rounded-2xl bg-[#25D366] px-5 py-3.5 text-sm font-bold text-white transition hover:bg-[#1ebe5d]">
             <MessageCircle size={18} /> WhatsApp
           </a>
+        </div>
+      </div>}
+
+      {signupSuccessOpen && <div className="fixed inset-0 z-[95] grid place-items-center bg-slate-950/45 px-5 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="signup-success-title">
+        <div className="w-full max-w-sm rounded-[2rem] bg-white p-8 text-center shadow-2xl animate-[fade-up_400ms_ease-out_both]">
+          <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-emerald-50 text-emerald-500">
+            <Check size={32} strokeWidth={3} />
+          </div>
+          <h2 id="signup-success-title" className="mt-5 font-display text-3xl font-extrabold tracking-[-0.06em] text-ink">{text.signupSuccessTitle}</h2>
+          <p className="mt-3 text-sm leading-6 text-slate-500">{text.signupSuccessText}</p>
+          <button type="button" onClick={() => { setSignupSuccessOpen(false); openDashboard() }} className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-ocean px-5 py-3.5 text-sm font-bold text-white transition hover:bg-[#1855db]">
+            {text.signupSuccessDashboard} <LayoutDashboard size={17} />
+          </button>
+          <button type="button" onClick={() => setSignupSuccessOpen(false)} className="mt-3 w-full text-center text-sm font-bold text-slate-500 transition hover:text-ocean">
+            {text.signupSuccessClose}
+          </button>
         </div>
       </div>}
 
