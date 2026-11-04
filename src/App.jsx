@@ -10,26 +10,51 @@ import {
   MessageCircle,
   X,
 } from 'lucide-react'
+import { supabase } from './lib/supabase'
 
 const gallery = [
   { src: '/gallery-transponder-size.png', alt: 'YURLAPS Transponder size comparison' },
 ]
 
-function LoginPage({ text, onBack }) {
+function LoginPage({ text, onBack, onSignedIn }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [name, setName] = useState('')
+  const [mode, setMode] = useState('login')
   const [error, setError] = useState('')
   const [submitted, setSubmitted] = useState(false)
+  const [loading, setLoading] = useState(false)
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
-    if (!email.trim() || !password) {
-      setError(text.loginError)
+    if (!supabase) {
+      setError(text.supabaseMissing)
       setSubmitted(false)
       return
     }
+    if (!email.trim() || !password || (mode === 'register' && !name.trim())) {
+      setError(mode === 'login' ? text.loginError : text.registerError)
+      setSubmitted(false)
+      return
+    }
+
+    setLoading(true)
     setError('')
-    setSubmitted(true)
+    setSubmitted(false)
+    const result = mode === 'login'
+      ? await supabase.auth.signInWithPassword({ email: email.trim(), password })
+      : await supabase.auth.signUp({ email: email.trim(), password, options: { data: { full_name: name.trim() } } })
+    setLoading(false)
+
+    if (result.error) {
+      setError(result.error.message)
+      return
+    }
+    if (mode === 'register' && !result.data.session) {
+      setSubmitted(true)
+      return
+    }
+    onSignedIn(result.data.session)
   }
 
   return (
@@ -40,7 +65,7 @@ function LoginPage({ text, onBack }) {
           <img src="/yurlaps-logo-transparent.png" alt="YurLaps" className="h-14 w-36 object-contain object-left" />
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.22em] text-blue-300">YurLaps</p>
-            <h1 className="mt-4 max-w-sm font-display text-5xl font-extrabold leading-[0.95] tracking-[-0.07em]">{text.loginTitle}</h1>
+            <h1 className="mt-4 max-w-sm font-display text-5xl font-extrabold leading-[0.95] tracking-[-0.07em]">{mode === 'login' ? text.loginTitle : text.registerTitle}</h1>
             <p className="mt-5 max-w-sm text-base leading-7 text-slate-300">{text.loginSubtitle}</p>
           </div>
         </div>
@@ -52,9 +77,13 @@ function LoginPage({ text, onBack }) {
             <img src="/yurlaps-logo-transparent.png" alt="YurLaps" className="h-12 w-32 object-contain object-left" />
             <p className="mt-8 text-xs font-bold uppercase tracking-[0.22em] text-ocean">YurLaps</p>
           </div>
-          <h1 className="mt-4 font-display text-4xl font-extrabold tracking-[-0.07em] text-ink sm:text-5xl">{text.loginTitle}</h1>
+          <h1 className="mt-4 font-display text-4xl font-extrabold tracking-[-0.07em] text-ink sm:text-5xl">{mode === 'login' ? text.loginTitle : text.registerTitle}</h1>
           <p className="mt-4 max-w-md text-base leading-7 text-slate-500">{text.loginSubtitle}</p>
           <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+            {mode === 'register' && <label className="block">
+              <span className="mb-2 block text-sm font-bold text-ink">{text.fullName}</span>
+              <input type="text" value={name} onChange={(event) => setName(event.target.value)} placeholder="Your name" autoComplete="name" className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-ocean focus:bg-white focus:ring-4 focus:ring-blue-100" />
+            </label>}
             <label className="block">
               <span className="mb-2 block text-sm font-bold text-ink">{text.email}</span>
               <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" autoComplete="email" className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-ocean focus:bg-white focus:ring-4 focus:ring-blue-100" />
@@ -64,11 +93,14 @@ function LoginPage({ text, onBack }) {
               <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="••••••••" autoComplete="current-password" className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-ocean focus:bg-white focus:ring-4 focus:ring-blue-100" />
             </label>
             {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-600" role="alert">{error}</p>}
-            {submitted && <p className="rounded-xl bg-blue-50 px-4 py-3 text-sm font-semibold text-ocean" role="status">{text.loginComingSoon}</p>}
-            <button type="submit" className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-ocean px-5 py-3.5 text-sm font-bold text-white transition hover:bg-[#1855db]">
-              {text.loginSubmit} <LogIn size={17} />
+            {submitted && <p className="rounded-xl bg-blue-50 px-4 py-3 text-sm font-semibold text-ocean" role="status">{text.registerSuccess}</p>}
+            <button type="submit" disabled={loading} className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-ocean px-5 py-3.5 text-sm font-bold text-white transition hover:bg-[#1855db] disabled:cursor-wait disabled:opacity-60">
+              {loading ? text.loading : mode === 'login' ? text.loginSubmit : text.registerSubmit} <LogIn size={17} />
             </button>
           </form>
+          <button type="button" onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); setSubmitted(false) }} className="mt-6 w-full text-center text-sm font-bold text-ocean transition hover:text-[#1855db]">
+            {mode === 'login' ? text.noAccount : text.haveAccount}
+          </button>
         </div>
       </div>
     </main>
@@ -83,10 +115,24 @@ function App() {
   const [activeProduct, setActiveProduct] = useState(0)
   const [contactOpen, setContactOpen] = useState(false)
   const [currentPage, setCurrentPage] = useState(window.location.pathname === '/login' ? 'login' : 'home')
+  const [session, setSession] = useState(null)
 
   useEffect(() => {
     const timer = window.setTimeout(() => setIsLoading(false), 1800)
     return () => window.clearTimeout(timer)
+  }, [])
+
+  useEffect(() => {
+    if (!supabase) return undefined
+    let active = true
+    supabase.auth.getSession().then(({ data }) => {
+      if (active) setSession(data.session)
+    })
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => setSession(nextSession))
+    return () => {
+      active = false
+      listener.subscription.unsubscribe()
+    }
   }, [])
 
   const copy = {
@@ -152,6 +198,7 @@ function App() {
       contactText: 'Tell us about your setup, and we will help you get started with YURLAPS.',
       contactButton: 'Contact us',
       login: 'Login',
+      logout: 'Logout',
       loginTitle: 'Welcome back.',
       loginSubtitle: 'Sign in with your email and password to continue to your YurLaps account.',
       email: 'Email',
@@ -160,6 +207,15 @@ function App() {
       loginBack: 'Back to YurLaps',
       loginError: 'Please enter your email and password.',
       loginComingSoon: 'The login service will be connected soon.',
+      registerTitle: 'Create your account.',
+      registerSubmit: 'Create account',
+      registerError: 'Please enter your name, email, and password.',
+      registerSuccess: 'Account created. Check your email to confirm your account.',
+      fullName: 'Full name',
+      noAccount: 'New to YurLaps? Create an account',
+      haveAccount: 'Already have an account? Login',
+      loading: 'Please wait...',
+      supabaseMissing: 'Supabase is not configured. Add the VITE environment variables first.',
       account: 'Account coming soon.',
       footer: 'Small, light, affordable, and accurate.',
       back: 'Back to top',
@@ -227,6 +283,7 @@ function App() {
       contactText: 'Ceritakan setup-mu, dan kami akan membantu memulai dengan YURLAPS.',
       contactButton: 'Hubungi kami',
       login: 'Login',
+      logout: 'Keluar',
       loginTitle: 'Selamat datang kembali.',
       loginSubtitle: 'Masuk menggunakan email dan password untuk melanjutkan ke akun YurLaps.',
       email: 'Email',
@@ -235,6 +292,15 @@ function App() {
       loginBack: 'Kembali ke YurLaps',
       loginError: 'Silakan isi email dan password.',
       loginComingSoon: 'Layanan login akan segera terhubung.',
+      registerTitle: 'Buat akunmu.',
+      registerSubmit: 'Buat akun',
+      registerError: 'Silakan isi nama, email, dan password.',
+      registerSuccess: 'Akun berhasil dibuat. Cek email untuk konfirmasi akun.',
+      fullName: 'Nama lengkap',
+      noAccount: 'Belum punya akun YurLaps? Buat akun',
+      haveAccount: 'Sudah punya akun? Masuk',
+      loading: 'Tunggu sebentar...',
+      supabaseMissing: 'Supabase belum dikonfigurasi. Tambahkan environment variable VITE terlebih dahulu.',
       account: 'Akun segera hadir.',
       footer: 'Kecil, ringan, terjangkau, dan akurat.',
       back: 'Kembali ke atas',
@@ -261,6 +327,14 @@ function App() {
     window.history.pushState({}, '', '/')
     setCurrentPage('home')
     window.scrollTo({ top: 0, behavior: 'instant' })
+  }
+
+  const handleSignedIn = () => {
+    goHome()
+  }
+
+  const handleSignOut = async () => {
+    if (supabase) await supabase.auth.signOut()
   }
 
   const scrollTo = (id) => {
@@ -305,13 +379,13 @@ function App() {
               {languageOpen && <div className="absolute right-0 top-full mt-2 w-32 rounded-2xl border border-slate-100 bg-white p-1.5 shadow-card">{[['en', 'English'], ['id', 'Indonesia']].map(([value, label]) => <button key={value} onClick={() => { setLanguage(value); setLanguageOpen(false) }} className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-semibold ${language === value ? 'bg-mist text-ocean' : 'text-slate-500 hover:bg-slate-50'}`}>{label}{language === value && <Check size={14} />}</button>)}</div>}
             </div>
           </div>
-          <button onClick={openLogin} className="hidden items-center gap-2 rounded-full bg-ocean px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#1855db] md:flex">{text.login} <LogIn size={16} /></button>
+          {session ? <button onClick={handleSignOut} className="hidden items-center gap-2 rounded-full bg-slate-100 px-4 py-2.5 text-sm font-semibold text-ocean transition hover:bg-blue-100 md:flex">{session.user.email} · {text.logout}</button> : <button onClick={openLogin} className="hidden items-center gap-2 rounded-full bg-ocean px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#1855db] md:flex">{text.login} <LogIn size={16} /></button>}
           <button onClick={() => setMenuOpen(!menuOpen)} className="rounded-full p-2 text-slate-700 hover:bg-blue-50 md:hidden" aria-label="Toggle menu">{menuOpen ? <X size={21} /> : <Menu size={21} />}</button>
         </nav>
-        {menuOpen && <div className="relative z-10 border-t border-blue-100 bg-white/95 px-5 py-3 backdrop-blur-md md:hidden">{[['home', text.home], ['products', text.product], ['gallery', text.gallery], ['contact', text.contact]].map(([id, label]) => <button key={id} onClick={() => scrollTo(id)} className="block w-full rounded-xl px-3 py-3 text-left text-sm font-bold text-slate-600 hover:bg-blue-50">{label}</button>)}<button onClick={openLogin} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-ocean px-4 py-3 text-sm font-bold text-white">{text.login} <LogIn size={16} /></button><div className="mt-2 flex gap-2 border-t border-blue-100 pt-3">{[['en', 'EN'], ['id', 'ID']].map(([value, label]) => <button key={value} onClick={() => setLanguage(value)} className={`rounded-full px-4 py-2 text-xs font-bold ${language === value ? 'bg-ocean text-white' : 'bg-blue-50 text-slate-500'}`}>{label}</button>)}</div></div>}
+        {menuOpen && <div className="relative z-10 border-t border-blue-100 bg-white/95 px-5 py-3 backdrop-blur-md md:hidden">{[['home', text.home], ['products', text.product], ['gallery', text.gallery], ['contact', text.contact]].map(([id, label]) => <button key={id} onClick={() => scrollTo(id)} className="block w-full rounded-xl px-3 py-3 text-left text-sm font-bold text-slate-600 hover:bg-blue-50">{label}</button>)}{session ? <button onClick={handleSignOut} className="mt-2 flex w-full items-center justify-center rounded-xl bg-slate-100 px-4 py-3 text-sm font-bold text-ocean">{text.logout}</button> : <button onClick={openLogin} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-ocean px-4 py-3 text-sm font-bold text-white">{text.login} <LogIn size={16} /></button>}<div className="mt-2 flex gap-2 border-t border-blue-100 pt-3">{[['en', 'EN'], ['id', 'ID']].map(([value, label]) => <button key={value} onClick={() => setLanguage(value)} className={`rounded-full px-4 py-2 text-xs font-bold ${language === value ? 'bg-ocean text-white' : 'bg-blue-50 text-slate-500'}`}>{label}</button>)}</div></div>}
       </header>
 
-      {currentPage === 'login' ? <LoginPage text={text} onBack={goHome} /> : <>
+      {currentPage === 'login' ? <LoginPage text={text} onBack={goHome} onSignedIn={handleSignedIn} /> : <>
       <main>
         <section id="home" className="pb-24 pt-20 lg:pb-32 lg:pt-28">
           <div className="mx-auto max-w-6xl px-5 sm:px-8">
