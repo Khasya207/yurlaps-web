@@ -24,24 +24,24 @@ Import this repository into Vercel. Vercel detects Vite automatically:
 - **Build command:** `npm run build`
 - **Output directory:** `dist`
 
-The `/login` route is included and handled by the Vercel rewrite configuration. Login uses email and password. Registration uses email, password, CAPTCHA, and a six-digit email OTP verification step.
+The `/login` route is included and handled by the Vercel rewrite configuration. Login uses email and password. Registration uses name, email, password, and CAPTCHA. New accounts are signed in immediately, so account verification is skipped for now.
 
 Copy `.env.example` to `.env.local` for local development and fill in the Supabase project URL and anon/publishable key. Add the same variables to Vercel for Production, Preview, and Development environments. Enable **Email** under Supabase **Authentication → Providers**, and configure the site URL and redirect URLs to include your Vercel domain.
 
+## Automatic account verification
+
+Open **Supabase → Authentication → Sign In / Providers → Email** and turn off **Confirm email**. With confirmation disabled, `signUp` returns an active session and the account is verified automatically right after registration.
+
+If email confirmation stays enabled, Supabase will not create a session on signup and the app will show a message asking you to disable it. Existing unconfirmed users can be confirmed manually from **Supabase → Authentication → Users**.
+
 ## YURLAPS AUTH email
 
-Customize registration and password-reset emails from **Supabase → Authentication → Email Templates**. Suggested values:
+Email templates are still used for password reset and other account emails. Customize them from **Supabase → Authentication → Email Templates**. Suggested values:
 
 - **Sender name:** `YURLAPS AUTH`
-- **Confirm signup subject:** `Welcome to YURLAPS AUTH — confirm your email`
 - **Reset password subject:** `YURLAPS AUTH — reset your password`
-- **Confirm signup link:** keep Supabase's `{{ .ConfirmationURL }}` variable
 
-For OTP emails, customize the **Magic Link** template and use the `{{ .Token }}` variable for the six-digit code. Example subject:
-
-`Your YURLAPS AUTH verification code`
-
-Use the Supabase template variables such as `{{ .Email }}`, `{{ .Token }}`, and `{{ .SiteURL }}`. Configure the same URLs under **Authentication → URL Configuration**:
+Configure the same URLs under **Authentication → URL Configuration**:
 
 - `http://127.0.0.1:5173`
 - Your Vercel production URL
