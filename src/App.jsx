@@ -18,11 +18,10 @@ const gallery = [
 
 function LoginPage({ text, onBack, onSignedIn }) {
   const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [name, setName] = useState('')
-  const [mode, setMode] = useState('login')
+  const [otp, setOtp] = useState('')
+  const [otpSent, setOtpSent] = useState(false)
   const [error, setError] = useState('')
-  const [submitted, setSubmitted] = useState(false)
+  const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (event) => {
@@ -32,24 +31,20 @@ function LoginPage({ text, onBack, onSignedIn }) {
       setSubmitted(false)
       return
     }
-    if (!email.trim() || !password || (mode === 'register' && !name.trim())) {
-      setError(mode === 'login' ? text.loginError : text.registerError)
-      setSubmitted(false)
+    if (!email.trim()) {
+      setError(text.otpEmailError)
+      setMessage('')
       return
     }
 
     setLoading(true)
     setError('')
-    setSubmitted(false)
-    const result = mode === 'login'
-      ? await supabase.auth.signInWithPassword({ email: email.trim(), password })
-      : await supabase.auth.signUp({
+    setMessage('')
+    const result = otpSent
+      ? await supabase.auth.verifyOtp({ email: email.trim(), token: otp.trim(), type: 'email' })
+      : await supabase.auth.signInWithOtp({
           email: email.trim(),
-          password,
-          options: {
-            data: { full_name: name.trim() },
-            emailRedirectTo: `${window.location.origin}/login`,
-          },
+          options: { shouldCreateUser: true },
         })
     setLoading(false)
 
@@ -57,8 +52,9 @@ function LoginPage({ text, onBack, onSignedIn }) {
       setError(result.error.message)
       return
     }
-    if (mode === 'register' && !result.data.session) {
-      setSubmitted(true)
+    if (!otpSent) {
+      setOtpSent(true)
+      setMessage(text.otpSent)
       return
     }
     onSignedIn(result.data.session)
@@ -72,7 +68,7 @@ function LoginPage({ text, onBack, onSignedIn }) {
           <img src="/yurlaps-logo-transparent.png" alt="YurLaps" className="h-14 w-36 object-contain object-left" />
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.22em] text-blue-300">YurLaps</p>
-            <h1 className="mt-4 max-w-sm font-display text-5xl font-extrabold leading-[0.95] tracking-[-0.07em]">{mode === 'login' ? text.loginTitle : text.registerTitle}</h1>
+            <h1 className="mt-4 max-w-sm font-display text-5xl font-extrabold leading-[0.95] tracking-[-0.07em]">{text.loginTitle}</h1>
             <p className="mt-5 max-w-sm text-base leading-7 text-slate-300">{text.loginSubtitle}</p>
           </div>
         </div>
@@ -84,30 +80,24 @@ function LoginPage({ text, onBack, onSignedIn }) {
             <img src="/yurlaps-logo-transparent.png" alt="YurLaps" className="h-12 w-32 object-contain object-left" />
             <p className="mt-8 text-xs font-bold uppercase tracking-[0.22em] text-ocean">YurLaps</p>
           </div>
-          <h1 className="mt-4 font-display text-4xl font-extrabold tracking-[-0.07em] text-ink sm:text-5xl">{mode === 'login' ? text.loginTitle : text.registerTitle}</h1>
-          <p className="mt-4 max-w-md text-base leading-7 text-slate-500">{text.loginSubtitle}</p>
+          <h1 className="mt-4 font-display text-4xl font-extrabold tracking-[-0.07em] text-ink sm:text-5xl">{text.loginTitle}</h1>
+          <p className="mt-4 max-w-md text-base leading-7 text-slate-500">{otpSent ? text.otpPrompt : text.loginSubtitle}</p>
           <form onSubmit={handleSubmit} className="mt-8 space-y-5">
-            {mode === 'register' && <label className="block">
-              <span className="mb-2 block text-sm font-bold text-ink">{text.fullName}</span>
-              <input type="text" value={name} onChange={(event) => setName(event.target.value)} placeholder="Your name" autoComplete="name" className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-ocean focus:bg-white focus:ring-4 focus:ring-blue-100" />
-            </label>}
             <label className="block">
               <span className="mb-2 block text-sm font-bold text-ink">{text.email}</span>
-              <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" autoComplete="email" className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-ocean focus:bg-white focus:ring-4 focus:ring-blue-100" />
+              <input type="email" value={email} disabled={otpSent} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" autoComplete="email" className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-ocean focus:bg-white focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-60" />
             </label>
-            <label className="block">
-              <span className="mb-2 block text-sm font-bold text-ink">{text.password}</span>
-              <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="••••••••" autoComplete="current-password" className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-ocean focus:bg-white focus:ring-4 focus:ring-blue-100" />
-            </label>
+            {otpSent && <label className="block">
+              <span className="mb-2 block text-sm font-bold text-ink">{text.otpCode}</span>
+              <input type="text" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={otp} onChange={(event) => setOtp(event.target.value.replace(/\D/g, ''))} placeholder="123456" autoComplete="one-time-code" className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-center text-lg font-bold tracking-[0.35em] text-ink outline-none transition placeholder:text-slate-400 focus:border-ocean focus:bg-white focus:ring-4 focus:ring-blue-100" />
+            </label>}
             {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-600" role="alert">{error}</p>}
-            {submitted && <p className="rounded-xl bg-blue-50 px-4 py-3 text-sm font-semibold text-ocean" role="status">{text.registerSuccess}</p>}
+            {message && <p className="rounded-xl bg-blue-50 px-4 py-3 text-sm font-semibold text-ocean" role="status">{message}</p>}
             <button type="submit" disabled={loading} className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-ocean px-5 py-3.5 text-sm font-bold text-white transition hover:bg-[#1855db] disabled:cursor-wait disabled:opacity-60">
-              {loading ? text.loading : mode === 'login' ? text.loginSubmit : text.registerSubmit} <LogIn size={17} />
+              {loading ? text.loading : otpSent ? text.verifyOtp : text.sendOtp} <LogIn size={17} />
             </button>
           </form>
-          <button type="button" onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); setSubmitted(false) }} className="mt-6 w-full text-center text-sm font-bold text-ocean transition hover:text-[#1855db]">
-            {mode === 'login' ? text.noAccount : text.haveAccount}
-          </button>
+          {otpSent && <button type="button" onClick={() => { setOtpSent(false); setOtp(''); setError(''); setMessage('') }} className="mt-6 w-full text-center text-sm font-bold text-ocean transition hover:text-[#1855db]">{text.changeEmail}</button>}
         </div>
       </div>
     </main>
@@ -223,6 +213,13 @@ function App() {
       haveAccount: 'Already have an account? Login',
       loading: 'Please wait...',
       supabaseMissing: 'Supabase is not configured. Add the VITE environment variables first.',
+      otpEmailError: 'Please enter a valid email address.',
+      otpSent: 'A 6-digit verification code was sent to your email.',
+      otpPrompt: 'Enter the 6-digit code sent to your email to continue.',
+      otpCode: 'Verification code',
+      sendOtp: 'Send code',
+      verifyOtp: 'Verify and continue',
+      changeEmail: 'Use a different email',
       account: 'Account coming soon.',
       footer: 'Small, light, affordable, and accurate.',
       back: 'Back to top',
@@ -308,6 +305,13 @@ function App() {
       haveAccount: 'Sudah punya akun? Masuk',
       loading: 'Tunggu sebentar...',
       supabaseMissing: 'Supabase belum dikonfigurasi. Tambahkan environment variable VITE terlebih dahulu.',
+      otpEmailError: 'Silakan masukkan alamat email yang valid.',
+      otpSent: 'Kode verifikasi 6 digit telah dikirim ke email kamu.',
+      otpPrompt: 'Masukkan kode 6 digit yang dikirim ke email kamu untuk melanjutkan.',
+      otpCode: 'Kode verifikasi',
+      sendOtp: 'Kirim kode',
+      verifyOtp: 'Verifikasi dan lanjutkan',
+      changeEmail: 'Gunakan email lain',
       account: 'Akun segera hadir.',
       footer: 'Kecil, ringan, terjangkau, dan akurat.',
       back: 'Kembali ke atas',
