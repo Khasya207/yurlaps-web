@@ -4,6 +4,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
+  LogIn,
   Mail,
   Menu,
   MessageCircle,
@@ -14,6 +15,66 @@ const gallery = [
   { src: '/gallery-transponder-size.png', alt: 'YURLAPS Transponder size comparison' },
 ]
 
+function LoginPage({ text, onBack }) {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [submitted, setSubmitted] = useState(false)
+
+  const handleSubmit = (event) => {
+    event.preventDefault()
+    if (!email.trim() || !password) {
+      setError(text.loginError)
+      setSubmitted(false)
+      return
+    }
+    setError('')
+    setSubmitted(true)
+  }
+
+  return (
+    <main className="relative flex min-h-[calc(100vh-5rem)] items-center justify-center overflow-hidden px-5 py-16 sm:px-8">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(74,164,255,0.2),transparent_38%),linear-gradient(180deg,#f8fbff_0%,#ffffff_100%)]" />
+      <div className="relative grid w-full max-w-5xl overflow-hidden rounded-[2rem] border border-blue-100 bg-white shadow-[0_24px_80px_rgba(7,88,216,0.12)] lg:grid-cols-[0.85fr_1.15fr]">
+        <div className="hidden bg-ink p-12 text-white lg:flex lg:flex-col lg:justify-between">
+          <img src="/yurlaps-logo-transparent.png" alt="YurLaps" className="h-14 w-36 object-contain object-left" />
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-blue-300">YurLaps</p>
+            <h1 className="mt-4 max-w-sm font-display text-5xl font-extrabold leading-[0.95] tracking-[-0.07em]">{text.loginTitle}</h1>
+            <p className="mt-5 max-w-sm text-base leading-7 text-slate-300">{text.loginSubtitle}</p>
+          </div>
+        </div>
+        <div className="relative p-7 sm:p-10 lg:p-12">
+          <button type="button" onClick={onBack} className="mb-10 inline-flex items-center gap-2 text-sm font-bold text-slate-500 transition hover:text-ocean">
+            <ChevronLeft size={17} /> {text.loginBack}
+          </button>
+          <div className="lg:hidden">
+            <img src="/yurlaps-logo-transparent.png" alt="YurLaps" className="h-12 w-32 object-contain object-left" />
+            <p className="mt-8 text-xs font-bold uppercase tracking-[0.22em] text-ocean">YurLaps</p>
+          </div>
+          <h1 className="mt-4 font-display text-4xl font-extrabold tracking-[-0.07em] text-ink sm:text-5xl">{text.loginTitle}</h1>
+          <p className="mt-4 max-w-md text-base leading-7 text-slate-500">{text.loginSubtitle}</p>
+          <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+            <label className="block">
+              <span className="mb-2 block text-sm font-bold text-ink">{text.email}</span>
+              <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" autoComplete="email" className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-ocean focus:bg-white focus:ring-4 focus:ring-blue-100" />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-sm font-bold text-ink">{text.password}</span>
+              <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="••••••••" autoComplete="current-password" className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-ocean focus:bg-white focus:ring-4 focus:ring-blue-100" />
+            </label>
+            {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-600" role="alert">{error}</p>}
+            {submitted && <p className="rounded-xl bg-blue-50 px-4 py-3 text-sm font-semibold text-ocean" role="status">{text.loginComingSoon}</p>}
+            <button type="submit" className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-ocean px-5 py-3.5 text-sm font-bold text-white transition hover:bg-[#1855db]">
+              {text.loginSubmit} <LogIn size={17} />
+            </button>
+          </form>
+        </div>
+      </div>
+    </main>
+  )
+}
+
 function App() {
   const [isLoading, setIsLoading] = useState(true)
   const [language, setLanguage] = useState('en')
@@ -21,6 +82,7 @@ function App() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeProduct, setActiveProduct] = useState(0)
   const [contactOpen, setContactOpen] = useState(false)
+  const [currentPage, setCurrentPage] = useState(window.location.pathname === '/login' ? 'login' : 'home')
 
   useEffect(() => {
     const timer = window.setTimeout(() => setIsLoading(false), 1800)
@@ -89,6 +151,15 @@ function App() {
       contactTitle: 'Bring accurate timing to your track.',
       contactText: 'Tell us about your setup, and we will help you get started with YURLAPS.',
       contactButton: 'Contact us',
+      login: 'Login',
+      loginTitle: 'Welcome back.',
+      loginSubtitle: 'Sign in with your email and password to continue to your YurLaps account.',
+      email: 'Email',
+      password: 'Password',
+      loginSubmit: 'Login',
+      loginBack: 'Back to YurLaps',
+      loginError: 'Please enter your email and password.',
+      loginComingSoon: 'The login service will be connected soon.',
       account: 'Account coming soon.',
       footer: 'Small, light, affordable, and accurate.',
       back: 'Back to top',
@@ -155,6 +226,15 @@ function App() {
       contactTitle: 'Hadirkan timing akurat ke lintasanmu.',
       contactText: 'Ceritakan setup-mu, dan kami akan membantu memulai dengan YURLAPS.',
       contactButton: 'Hubungi kami',
+      login: 'Login',
+      loginTitle: 'Selamat datang kembali.',
+      loginSubtitle: 'Masuk menggunakan email dan password untuk melanjutkan ke akun YurLaps.',
+      email: 'Email',
+      password: 'Password',
+      loginSubmit: 'Masuk',
+      loginBack: 'Kembali ke YurLaps',
+      loginError: 'Silakan isi email dan password.',
+      loginComingSoon: 'Layanan login akan segera terhubung.',
       account: 'Akun segera hadir.',
       footer: 'Kecil, ringan, terjangkau, dan akurat.',
       back: 'Kembali ke atas',
@@ -163,6 +243,25 @@ function App() {
   }
 
   const text = copy[language]
+
+  useEffect(() => {
+    const handlePopState = () => setCurrentPage(window.location.pathname === '/login' ? 'login' : 'home')
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
+
+  const openLogin = () => {
+    setMenuOpen(false)
+    window.history.pushState({}, '', '/login')
+    setCurrentPage('login')
+    window.scrollTo({ top: 0, behavior: 'instant' })
+  }
+
+  const goHome = () => {
+    window.history.pushState({}, '', '/')
+    setCurrentPage('home')
+    window.scrollTo({ top: 0, behavior: 'instant' })
+  }
 
   const scrollTo = (id) => {
     setMenuOpen(false)
@@ -206,12 +305,13 @@ function App() {
               {languageOpen && <div className="absolute right-0 top-full mt-2 w-32 rounded-2xl border border-slate-100 bg-white p-1.5 shadow-card">{[['en', 'English'], ['id', 'Indonesia']].map(([value, label]) => <button key={value} onClick={() => { setLanguage(value); setLanguageOpen(false) }} className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-semibold ${language === value ? 'bg-mist text-ocean' : 'text-slate-500 hover:bg-slate-50'}`}>{label}{language === value && <Check size={14} />}</button>)}</div>}
             </div>
           </div>
-          <button onClick={openContact} className="hidden rounded-full bg-ocean px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#1855db] md:block">{text.contactButton}</button>
+          <button onClick={openLogin} className="hidden items-center gap-2 rounded-full bg-ocean px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#1855db] md:flex">{text.login} <LogIn size={16} /></button>
           <button onClick={() => setMenuOpen(!menuOpen)} className="rounded-full p-2 text-slate-700 hover:bg-blue-50 md:hidden" aria-label="Toggle menu">{menuOpen ? <X size={21} /> : <Menu size={21} />}</button>
         </nav>
-        {menuOpen && <div className="relative z-10 border-t border-blue-100 bg-white/95 px-5 py-3 backdrop-blur-md md:hidden">{[['home', text.home], ['products', text.product], ['gallery', text.gallery], ['contact', text.contact]].map(([id, label]) => <button key={id} onClick={() => scrollTo(id)} className="block w-full rounded-xl px-3 py-3 text-left text-sm font-bold text-slate-600 hover:bg-blue-50">{label}</button>)}<div className="mt-2 flex gap-2 border-t border-blue-100 pt-3">{[['en', 'EN'], ['id', 'ID']].map(([value, label]) => <button key={value} onClick={() => setLanguage(value)} className={`rounded-full px-4 py-2 text-xs font-bold ${language === value ? 'bg-ocean text-white' : 'bg-blue-50 text-slate-500'}`}>{label}</button>)}</div></div>}
+        {menuOpen && <div className="relative z-10 border-t border-blue-100 bg-white/95 px-5 py-3 backdrop-blur-md md:hidden">{[['home', text.home], ['products', text.product], ['gallery', text.gallery], ['contact', text.contact]].map(([id, label]) => <button key={id} onClick={() => scrollTo(id)} className="block w-full rounded-xl px-3 py-3 text-left text-sm font-bold text-slate-600 hover:bg-blue-50">{label}</button>)}<button onClick={openLogin} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-ocean px-4 py-3 text-sm font-bold text-white">{text.login} <LogIn size={16} /></button><div className="mt-2 flex gap-2 border-t border-blue-100 pt-3">{[['en', 'EN'], ['id', 'ID']].map(([value, label]) => <button key={value} onClick={() => setLanguage(value)} className={`rounded-full px-4 py-2 text-xs font-bold ${language === value ? 'bg-ocean text-white' : 'bg-blue-50 text-slate-500'}`}>{label}</button>)}</div></div>}
       </header>
 
+      {currentPage === 'login' ? <LoginPage text={text} onBack={goHome} /> : <>
       <main>
         <section id="home" className="pb-24 pt-20 lg:pb-32 lg:pt-28">
           <div className="mx-auto max-w-6xl px-5 sm:px-8">
@@ -305,6 +405,7 @@ function App() {
       </div>}
 
       <footer className="mx-auto flex max-w-6xl items-center justify-between border-t border-slate-200 px-5 py-8 text-xs text-slate-400 sm:px-8"><span>© 2026 YurLaps. {text.footer}</span><button onClick={() => scrollTo('home')} className="flex items-center gap-2 font-semibold text-ink hover:text-ocean">{text.back} <ChevronDown size={14} className="rotate-180" /></button></footer>
+      </>}
     </div>
   )
 }

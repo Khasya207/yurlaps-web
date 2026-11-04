@@ -24,3 +24,4 @@ Import this repository into Vercel. Vercel detects Vite automatically:
 - **Build command:** `npm run build`
 - **Output directory:** `dist`
 
+The `/login` route is included and handled by the Vercel rewrite configuration. The email/password form is currently UI-ready; connect it to your authentication provider before using it for production accounts.
